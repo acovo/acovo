@@ -6,3 +6,6 @@ pub mod time;
 
 #[cfg(feature = "hash")]
 pub mod hash;
+
+#[cfg(feature = "trace")]
+pub mod trace;

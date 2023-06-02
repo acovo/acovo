@@ -9,10 +9,14 @@ edition = "2021"
 time=["chrono","chrono-tz"]
 fs=[]
 hash=["crc64","hex"]
-default=["time","fs","hash"]
+trace=["tracing-subscriber","tracing-appender","tracing"]
+default=["time","fs","hash","trace"]
 
 [dependencies]
 chrono={version = "0.4",optional=true}
 chrono-tz={version = "0.8",optional=true}
 crc64={version = "2",optional=true}
 hex = {version = "0.4",optional=true}
+tracing-subscriber={version = "0.3",optional=true}
+tracing-appender = {version = "0.2",optional=true}
+tracing={version = "0.1",optional=true}
