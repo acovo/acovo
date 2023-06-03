@@ -14,7 +14,6 @@ pub fn crc64_str(data:&str,seperator:Option<&str>)->String {
     }
 }
 
-
 #[cfg(test)]
 #[cfg(feature = "hash")]
 mod tests {

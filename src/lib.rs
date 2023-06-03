@@ -9,3 +9,6 @@ pub mod hash;
 
 #[cfg(feature = "trace")]
 pub mod trace;
+
+#[cfg(feature = "proto")]
+pub mod proto;
