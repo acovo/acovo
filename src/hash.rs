@@ -1,6 +1,6 @@
 #[cfg(feature = "hash")]
 pub fn crc64_str(data:&str,seperator:Option<&str>)->String {
-    use crc64::crc64;
+    //use crc64::crc64;
     let cksum = crc64::crc64(0, data.as_bytes()).to_be_bytes();
     let s = hex::encode(cksum).to_uppercase();
     if seperator.is_some() {

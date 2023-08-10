@@ -29,13 +29,23 @@ impl RequestHeader {
             sender:None
         }
     }
+
+    pub fn new_with_sign_action(sign:String,action:String) -> Self {
+        RequestHeader {
+            version:None,
+            action:Some(action),
+            sign:Some(sign),
+            timestamp:None,
+            sender:None
+        }
+    }
 }
 
 #[cfg(feature = "proto")]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request<T> {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub head:Option<RequestHeader>,
+    pub head: Option<RequestHeader>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<T>,
 }
@@ -63,7 +73,8 @@ impl<T> Request<T> {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct State {
     pub ret_code: u32,
-    pub ret_message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ret_message: Option<String>,
 }
 
 #[cfg(feature = "proto")]
@@ -117,10 +128,25 @@ impl<T> Response<T> {
             body: value,
         }
     }
+
+    pub fn new_with_state(code: u32, msg: &str) -> Self {
+
+        let state = State {
+            ret_code:code,
+            ret_message:Some(msg.to_string())
+        };
+
+        Response {
+            state: Some(state),
+            head:None,
+            body: None,
+        }
+    }
+
     pub fn raiseRequestError(&mut self, code: u32, msg: &str) {
         self.state = Some(State{
             ret_code:code,
-            ret_message:msg.to_string()
+            ret_message:Some(msg.to_string())
         });
     }
 }
@@ -145,5 +171,29 @@ mod tests {
         req.head = Some(RequestHeader::new_with_sign("1".to_string()));
         println!("serialize:{}",serde_json::to_string(&req).unwrap());
         assert_eq!(req.validate().is_ok(),true);
+    }
+
+    #[test]
+    fn test_deserialize() {
+        use serde_json::*;
+        use serde_derive::{Deserialize, Serialize};
+
+        let data = r###"{}"###;
+        let obj = serde_json::from_str::<Request<String>>(data);
+        println!("obj1->{:?}",obj);
+
+        let data = r###"{"body":"1234"}"###;
+        let obj = serde_json::from_str::<Request<String>>(data);
+        println!("obj2->{:?}",obj);
+
+        #[derive(Deserialize,Debug)]
+        struct Item {
+            AppId:String
+        }
+
+        let data = r###"{"body":{"AppId":"a1"}}"###;
+        let obj3 = serde_json::from_str::<Request<Item>>(data);
+        println!("obj3->{:?}",obj3);
+
     }
 }

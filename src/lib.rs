@@ -12,3 +12,6 @@ pub mod trace;
 
 #[cfg(feature = "proto")]
 pub mod proto;
+
+#[cfg(feature = "syncall")]
+pub mod syncall;

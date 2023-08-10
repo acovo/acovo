@@ -13,6 +13,7 @@ error=[]
 hash=["crc64","hex"]
 trace=["tracing-subscriber","tracing-appender","tracing"]
 default=["time","fs","hash","trace","proto","error"]
+syncall=[]
 
 [dependencies]
 chrono={version = "0.4",optional=true}
