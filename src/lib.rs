@@ -1,3 +1,5 @@
+#![feature(lazy_cell)]
+
 #[cfg(feature = "fs")]
 pub mod fs;
 
