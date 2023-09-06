@@ -1,4 +1,4 @@
-#![feature(lazy_cell)]
+//#![feature(lazy_cell)]
 
 #[cfg(feature = "fs")]
 pub mod fs;
@@ -17,3 +17,9 @@ pub mod proto;
 
 #[cfg(feature = "syncall")]
 pub mod syncall;
+
+#[cfg(feature = "net")]
+pub mod net;
+
+#[cfg(feature = "dev")]
+pub mod dev;

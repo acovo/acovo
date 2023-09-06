@@ -50,17 +50,41 @@ macro_rules! syncall_with_signal_timeout {
     };
 }
 
+
+#[cfg(feature = "syncall")]
+#[macro_export]
+macro_rules! atomic_call_imt {
+    ($r:expr,$l:expr,$b:ident) => {
+        unsafe {
+            let guard = &$l;
+            let mut retry = 3;
+            while retry > 0 {
+                match guard.try_borrow() {
+                    Ok(v) => {
+                        $r = v.$b();
+                        retry = 0;
+                    }
+                    Err(e) => {
+                        error!("BorrowFailed {}", retry);
+                        retry -= 1;
+                    }
+                }
+            }
+        };
+    };
+}
+
 #[cfg(feature = "syncall")]
 #[macro_export]
 macro_rules! atomic_call {
-    ($l:expr,$b:ident) => {
+    ($r:expr,$l:expr,$b:ident) => {
         unsafe {
             let guard = &$l;
             let mut retry = 3;
             while retry > 0 {
                 match guard.try_borrow_mut() {
                     Ok(mut v) => {
-                        v.$b();
+                        $r = v.$b();
                         retry = 0;
                     }
                     Err(e) => {
@@ -153,6 +177,50 @@ macro_rules! atomic_call_arg4 {
                 match guard.try_borrow_mut() {
                     Ok(mut v) => {
                         $ret = v.$f($a, $b, $c, $d);
+                        retry = 0;
+                    }
+                    Err(e) => {
+                        error!("BorrowFailed {}", retry);
+                        retry -= 1;
+                    }
+                }
+            }
+        };
+    };
+}
+
+#[cfg(feature = "syncall")]
+#[macro_export]
+macro_rules! state_call {
+    ($r:expr,$l:expr,$b:ident) => {
+        unsafe {
+            let mut retry = 3;
+            while retry > 0 {
+                match $l.get().write() {
+                    Ok(mut v) => {
+                        $r = v.$b();
+                        retry = 0;
+                    }
+                    Err(e) => {
+                        error!("BorrowFailed {}", retry);
+                        retry -= 1;
+                    }
+                }
+            }
+        };
+    };
+}
+
+#[cfg(feature = "syncall")]
+#[macro_export]
+macro_rules! state_call_imt {
+    ($r:expr,$l:expr,$b:ident) => {
+        unsafe {
+            let mut retry = 3;
+            while retry > 0 {
+                match $l.get().read() {
+                    Ok(v) => {
+                        $r = v.$b();
                         retry = 0;
                     }
                     Err(e) => {

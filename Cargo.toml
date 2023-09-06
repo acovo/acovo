@@ -6,28 +6,31 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-time=["chrono","chrono-tz"]
-fs=[]
-proto=["serde","serde_derive","anyhow","serde_json"]
-error=[]
-hash=["crc64","hex"]
-trace=["tracing-subscriber","tracing-appender","tracing"]
-default=["time","fs","hash","trace","proto","error"]
-syncall=[]
+time = ["chrono", "chrono-tz"]
+fs = []
+proto = ["serde", "serde_derive", "anyhow", "serde_json"]
+error = []
+hash = ["crc64", "hex"]
+trace = ["tracing-subscriber", "tracing-appender", "tracing"]
+default = ["time", "fs", "hash", "trace", "proto", "error"]
+syncall = []
+net = []
+dev = []
 
 [dependencies]
-chrono={version = "0.4",optional=true}
-chrono-tz={version = "0.8",optional=true}
-crc64={version = "2",optional=true}
-hex = {version = "0.4",optional=true}
-tracing-subscriber={version = "0.3",optional=true}
-tracing-appender = {version = "0.2",optional=true}
-tracing={version = "0.1",optional=true}
-serde={version = "1.0",optional=true}
-serde_json={version = "1.0",optional=true}
-serde_derive={version = "1.0",optional=true}
-anyhow={version = "1.0",optional=true}
-atomic_refcell="*"
+chrono = { version = "0.4", optional = true }
+chrono-tz = { version = "0.8", optional = true }
+crc64 = { version = "2", optional = true }
+hex = { version = "0.4", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+tracing-appender = { version = "0.2", optional = true }
+tracing = { version = "0.1", optional = true }
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+serde_derive = { version = "1.0", optional = true }
+anyhow = { version = "1.0", optional = true }
+atomic_refcell = "*"
+dns-lookup = { version = "*" }
 
 [dev-dependencies]
-crossbeam-utils="*"
+crossbeam-utils = "*"
