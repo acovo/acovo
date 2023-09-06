@@ -218,41 +218,46 @@ impl LinuxNetwork {
                     result.duration = response_list.get(0).unwrap_or(&"").parse::<f32>().unwrap();
                     //println!("sOutputOk {}",response.get(3).unwrap_or(&""));
                 } else {
-                    if sError.is_empty() && diag {
-                        //find other reason
-                        let network = LinuxNetwork {};
+                    //linux no output
+                    if sError.is_empty() {
+                        if diag {
+                            //find other reason
+                            let network = LinuxNetwork {};
 
-                        let route_table = LinuxNetwork::get_route_table().unwrap();
+                            let route_table = LinuxNetwork::get_route_table().unwrap();
 
-                        let routeInfo = route_table.Parse();
-                        debug!("GatewayInfo {:?}", routeInfo);
+                            let routeInfo = route_table.Parse();
+                            debug!("GatewayInfo {:?}", routeInfo);
 
-                        if routeInfo.nLinkUp == 0 {
-                            error!("Net NoLinkUp");
-                            return Err(anyhow!("NoLinkUp"));
-                        } else if routeInfo.nGatewayCount == 0 {
-                            error!("Net NoGateway");
-                            return Err(anyhow!("NoGateway"));
-                        } else {
-                            //find route by host
-                            let route = route_table.FindRoute(host);
-
-                            if route.is_none() {
-                                error!("Net NoRoute");
-                                return Err(anyhow!("NoRoute"));
+                            if routeInfo.nLinkUp == 0 {
+                                error!("Net NoLinkUp");
+                                return Err(anyhow!("NoLinkUp"));
+                            } else if routeInfo.nGatewayCount == 0 {
+                                error!("Net NoGateway");
+                                return Err(anyhow!("NoGateway"));
                             } else {
-                                //check route info
-                                debug!("FoundRoute-{:?}", route);
-                                let gateway = &route.unwrap().Gateway;
+                                //find route by host
+                                let route = route_table.FindRoute(host);
 
-                                match LinuxNetwork::ping_internal(&gateway, false) {
-                                    Ok(dt) => {}
-                                    Err(e) => {
-                                        error!("GatewayNotReachable {}",e);
-                                        return Err(anyhow!("GatewayNotReachable"));
+                                if route.is_none() {
+                                    error!("Net NoRoute");
+                                    return Err(anyhow!("NoRoute"));
+                                } else {
+                                    //check route info
+                                    debug!("FoundRoute-{:?}", route);
+                                    let gateway = &route.unwrap().Gateway;
+
+                                    match LinuxNetwork::ping_internal(&gateway, false) {
+                                        Ok(dt) => {}
+                                        Err(e) => {
+                                            error!("GatewayNotReachable {}", e);
+                                            return Err(anyhow!("GatewayNotReachable"));
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            return Err(anyhow!("NoErrData"));
                         }
                     } else {
                         error!("sError {}", sError);
@@ -262,6 +267,7 @@ impl LinuxNetwork {
             }
             Err(e) => {
                 error!("Err-{}", e);
+                return Err(anyhow!("{}", e));
             }
         }
 
@@ -324,11 +330,6 @@ impl os_network for LinuxNetwork {
                         if dev_flag == "dev" {
                             route.Dev = items.get(2).unwrap_or(&"").to_string();
                         }
-
-                        //route.Gateway = items.get(2).unwrap_or(&"").to_string();
-                        let dev2 = items.get(3).unwrap_or(&"");
-
-                        let dev_name = items.get(3).unwrap_or(&"");
 
                         if route.Dev.starts_with("dummy") {
                             continue;
