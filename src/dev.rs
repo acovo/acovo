@@ -8,6 +8,7 @@ pub fn LinuxFindUsbDevice(vid: &str, pid: &str) -> AnyResult<bool> {
     match Command::new("/bin/lsusb").output() {
         Ok(output) => {
             let mut sOutput = String::from_utf8(output.stdout)?;
+            tracing::error!("LSUSB-OUTPUT:\n{}",sOutput);
             if sOutput.len() == 0 {
                 let sErr = String::from_utf8(output.stderr)?;
                 return Err(anyhow!("check-usb-device-error {}", sErr));

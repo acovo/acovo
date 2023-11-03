@@ -14,6 +14,7 @@ pub struct NetLink {
     pub Ipv6: String,
     pub Name: String,
     pub Index: String,
+    pub State: String,
 }
 
 impl NetLink {
@@ -260,6 +261,10 @@ impl LinuxNetwork {
                             return Err(anyhow!("NoErrData"));
                         }
                     } else {
+                        if sError.contains("ping: unknown host") {
+                            sError = "ping: unknown host".to_string()
+                        }
+
                         error!("sError {}", sError);
                         return Err(anyhow!("{}", sError));
                     }
@@ -367,10 +372,12 @@ impl os_network for LinuxNetwork {
                     Ipv6: "".to_string(),
                     Name: "".to_string(),
                     Index: "".to_string(),
+                    State: "".to_string(),
                 };
 
                 for line in lines {
                     let line = line.trim();
+                    let mut netaddr: Vec<&str> = line.split(" ").collect();
 
                     if line.contains("state") {
                         //new line
@@ -378,9 +385,16 @@ impl os_network for LinuxNetwork {
                         if netlink.Name != "" {
                             result.push(netlink.clone());
                         }
-                    }
 
-                    let mut netaddr: Vec<&str> = line.split(" ").collect();
+                        //state check
+                        let mut nPos = 0;
+                        for item in netaddr.clone() {
+                            if item == "state" {
+                                netlink.State = netaddr.get(nPos + 1).unwrap_or(&"").to_string();
+                            }
+                            nPos += 1;
+                        }
+                    }
 
                     if counter == 0 {
                         netlink.Index = netaddr.get(0).unwrap_or(&"").to_string().replace(":", "");
@@ -397,6 +411,10 @@ impl os_network for LinuxNetwork {
                     } else if line.starts_with("inet") {
                         netlink.Ipv4 = netaddr.get(1).unwrap_or(&"").to_string();
                     }
+                }
+                
+                if netlink.Name != "" {
+                    result.push(netlink.clone());
                 }
 
                 Ok(result)
@@ -425,6 +443,12 @@ impl os_network for LinuxNetwork {
 mod tests {
     use super::*;
     use anyhow::{anyhow, Result as AnyResult};
+
+    #[test]
+    fn test_get_interface_list() {
+        let network = LinuxNetwork {};
+        println!("{:?}", LinuxNetwork::get_interface_list());
+    }
 
     #[test]
     fn test_get_interface_list() {
