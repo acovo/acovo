@@ -151,7 +151,6 @@ impl<T> Response<T> {
 #[cfg(feature = "proto")]
 mod tests {
     use super::*;
-    use serde_json::*;
 
     #[test]
     fn test_request_json() {
@@ -169,8 +168,7 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        use serde_derive::{Deserialize, Serialize};
-        use serde_json::*;
+        use serde_derive::{Deserialize};
 
         let data = r###"{}"###;
         let obj = serde_json::from_str::<Request<String>>(data);

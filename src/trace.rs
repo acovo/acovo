@@ -1,12 +1,10 @@
 #[cfg(feature = "trace")]
 use crate::fs::get_exe_dir;
+
 #[cfg(feature = "trace")]
-use crate::time::LocalTimeFormatter;
-#[cfg(feature = "trace")]
-use std::io;
-#[cfg(feature = "trace")]
-use tracing::*;
 use tracing_appender::non_blocking::NonBlocking;
+
+use crate::time::LocalTimeFormatter;
 
 #[cfg(feature = "trace")]
 #[macro_export]

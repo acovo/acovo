@@ -1,16 +1,16 @@
 #[cfg(feature = "time")]
-use chrono::{Local,Utc};
+use chrono::{Local, Utc};
 
 #[cfg(feature = "time")]
 use chrono_tz::Tz;
+#[cfg(feature = "time")]
+use chrono::TimeZone;
 
 #[cfg(feature = "trace")]
-use tracing_subscriber::fmt::{format::Writer,time::FormatTime};
+use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
 
+use anyhow::{anyhow, Result as AnyResult};
 use chrono::DateTime;
-use chrono_tz::Tz::UTC;
-use chrono::prelude::*;
-use anyhow::{anyhow,Result as AnyResult};
 
 #[cfg(feature = "time")]
 pub fn timestamp_char17_zone(zone_name: &str) -> String {
@@ -57,18 +57,14 @@ impl FormatTime for LocalTimeFormatter {
 }
 
 #[cfg(feature = "time")]
-pub fn timestamp_from_char14(timestamp: &str)->AnyResult<DateTime<Local>> {
+pub fn timestamp_from_char14(timestamp: &str) -> AnyResult<DateTime<Local>> {
     match Local.datetime_from_str(timestamp, "%Y%m%d%H%M%S") {
-        Ok(dt)=>{
-            Ok(dt)
-        }
-        Err(e)=>{      
-            Err(anyhow!("{}",e))
-        }
+        Ok(dt) => Ok(dt),
+        Err(e) => Err(anyhow!("{}", e)),
     }
 }
 
-#[cfg(test)]/**/
+#[cfg(test)] /**/
 #[cfg(feature = "time")]
 mod tests {
     use super::*;

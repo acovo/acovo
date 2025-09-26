@@ -160,22 +160,17 @@ impl LinuxNetwork {
         {
             Ok(output) => {
                 let mut netlink = NetLink::default();
-                let mut sOutput = String::from_utf8(output.stdout)?;
+                let sOutput = String::from_utf8(output.stdout)?;
                 //println!("Ouput {}", sOutput);
                 let sErr = String::from_utf8(output.stderr)?;
                 let lines = sOutput.split("\n");
-
-                let mut mac = "".to_string();
-                let mut ip = "".to_string();
-                let mut ip6 = "".to_string();
-                let mut index = "".to_string();
 
                 let mut counter = 0;
 
                 for line in lines {
                     let line = line.trim();
 
-                    let mut netaddr: Vec<&str> = line.split(" ").collect();
+                    let netaddr: Vec<&str> = line.split(" ").collect();
 
                     if counter == 0 {
                         netlink.Index = netaddr.get(0).unwrap_or(&"").to_string().replace(":", "");
@@ -206,7 +201,7 @@ impl LinuxNetwork {
             .output()
         {
             Ok(output) => {
-                let mut sOutput = String::from_utf8(output.stdout)?;
+                let sOutput = String::from_utf8(output.stdout)?;
                 let mut sError = String::from_utf8(output.stderr)?;
 
                 if sOutput.contains("icmp_seq=") {
@@ -223,7 +218,7 @@ impl LinuxNetwork {
                     if sError.is_empty() {
                         if diag {
                             //find other reason
-                            let network = LinuxNetwork {};
+                            let _network = LinuxNetwork {};
 
                             let route_table = LinuxNetwork::get_route_table().unwrap();
 
@@ -291,7 +286,7 @@ impl os_network for LinuxNetwork {
             Ok(output) => {
                 let mut result: RouteTable = RouteTable::default();
 
-                let mut sOutput = String::from_utf8(output.stdout)?;
+                let sOutput = String::from_utf8(output.stdout)?;
                 //println!("Ouput \n{}", sOutput);
 
                 let route_list = sOutput.split("\n");
@@ -311,9 +306,8 @@ impl os_network for LinuxNetwork {
                             route.Dest = dst;
                         }
 
-                        let mut pos = 0;
                         for mut pos in 0..items.len() {
-                            let mut flag = items.get(pos).unwrap_or(&"").to_string();
+                            let flag = items.get(pos).unwrap_or(&"").to_string();
                             if flag == "dev" {
                                 route.Dev = items.get(pos + 1).unwrap_or(&"").to_string();
                                 pos += 1;
@@ -330,7 +324,7 @@ impl os_network for LinuxNetwork {
                         }
                         //
 
-                        let mut dev_flag = items.get(1).unwrap_or(&"").to_string();
+                        let dev_flag = items.get(1).unwrap_or(&"").to_string();
 
                         if dev_flag == "dev" {
                             route.Dev = items.get(2).unwrap_or(&"").to_string();
@@ -356,7 +350,7 @@ impl os_network for LinuxNetwork {
         let mut result: Vec<NetLink> = vec![];
         match Command::new("/bin/ip").args(["addr"]).output() {
             Ok(output) => {
-                let mut sOutput = String::from_utf8(output.stdout)?;
+                let sOutput = String::from_utf8(output.stdout)?;
                 if sOutput.len() == 0 {
                     let sErr = String::from_utf8(output.stderr)?;
                     return Err(anyhow!("get_interfaces_error {}", sErr));
@@ -377,7 +371,7 @@ impl os_network for LinuxNetwork {
 
                 for line in lines {
                     let line = line.trim();
-                    let mut netaddr: Vec<&str> = line.split(" ").collect();
+                    let netaddr: Vec<&str> = line.split(" ").collect();
 
                     if line.contains("state") {
                         //new line
@@ -412,7 +406,7 @@ impl os_network for LinuxNetwork {
                         netlink.Ipv4 = netaddr.get(1).unwrap_or(&"").to_string();
                     }
                 }
-                
+
                 if netlink.Name != "" {
                     result.push(netlink.clone());
                 }
@@ -426,14 +420,14 @@ impl os_network for LinuxNetwork {
         }
     }
 
-    fn ping(host: &str) -> AnyResult<PingResult> {
-        LinuxNetwork::ping_internal(host, true)
+    fn ping(_host: &str) -> AnyResult<PingResult> {
+        LinuxNetwork::ping_internal(_host, true)
     }
 
-    fn nslookup(host: &str) -> AnyResult<NsLookupResult> {
+    fn nslookup(_host: &str) -> AnyResult<NsLookupResult> {
         Err(anyhow!("NotImplement"))
     }
-    fn tcping(host: &str, port: i32) -> AnyResult<TcpPingResult> {
+    fn tcping(_host: &str, _port: i32) -> AnyResult<TcpPingResult> {
         Err(anyhow!("NotImplement"))
     }
 }
@@ -446,19 +440,13 @@ mod tests {
 
     #[test]
     fn test_get_interface_list() {
-        let network = LinuxNetwork {};
-        println!("{:?}", LinuxNetwork::get_interface_list());
-    }
-
-    #[test]
-    fn test_get_interface_list() {
-        let network = LinuxNetwork {};
+        let _network = LinuxNetwork {};
         println!("{:?}", LinuxNetwork::get_interface_list());
     }
 
     #[test]
     fn test_get_route_table() {
-        let network = LinuxNetwork {};
+        let _network = LinuxNetwork {};
 
         let route_table = LinuxNetwork::get_route_table().unwrap();
 
@@ -472,9 +460,9 @@ mod tests {
 
     #[test]
     fn test_ping() {
-        let network = LinuxNetwork {};
+        let _network = LinuxNetwork {};
 
-        let route_table = LinuxNetwork::get_route_table().unwrap();
+        let _route_table = LinuxNetwork::get_route_table().unwrap();
 
         println!("{:?}", LinuxNetwork::ping("8.8.8.8"));
         println!("{:?}", LinuxNetwork::ping("1.net"));

@@ -1,4 +1,3 @@
-
 /// $r: return value, $s: success value, $e:action , $t: timeout in seconds
 #[cfg(feature = "syncall")]
 #[macro_export]
@@ -49,7 +48,6 @@ macro_rules! syncall_with_signal_timeout {
         debug!("sync_call exit");
     };
 }
-
 
 #[cfg(feature = "syncall")]
 #[macro_export]
@@ -238,16 +236,16 @@ macro_rules! state_call_imt {
 mod tests {
 
     use super::*;
+    use anyhow::Result as AnyResult;
     use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
     use crossbeam_utils::thread as CrossThread;
     use std::cell::LazyCell;
     use std::sync::Mutex;
     use std::time::Duration;
     use std::time::Instant;
-    use tracing::error;
-    use tracing::debug;
     use std::{thread, time};
-    use anyhow::Result as AnyResult;
+    use tracing::debug;
+    use tracing::error;
 
     static mut SignalExit: Mutex<bool> = Mutex::new(false);
 
@@ -258,11 +256,11 @@ mod tests {
     });
 
     pub trait MutableTrait {
-        fn test(&mut self);
-        fn test1(&mut self,f:u8)->u8;
-        fn test2(&mut self,f:u8,a:u8)->String;
-        fn test3(&mut self,f:u8,a:u8,b:u8)->bool;
-        fn test4(&mut self,f:u8,a:u8,b:u8,c:u8)->bool;
+        fn test(&mut self)->u8;
+        fn test1(&mut self, f: u8) -> u8;
+        fn test2(&mut self, f: u8, a: u8) -> String;
+        fn test3(&mut self, f: u8, a: u8, b: u8) -> bool;
+        fn test4(&mut self, f: u8, a: u8, b: u8, c: u8) -> bool;
     }
 
     pub struct MutableSystem {
@@ -270,9 +268,10 @@ mod tests {
     }
 
     impl MutableTrait for MutableSystem {
-        fn test(&mut self) {
+        fn test(&mut self)->u8 {
             self.info = "X".to_string();
-            println!(".")
+            println!(".");
+            0
         }
 
         fn test1(&mut self, f: u8) -> u8 {
@@ -292,7 +291,7 @@ mod tests {
             println!("t3");
             true
         }
-        fn test4(&mut self, f: u8, a: u8, b: u8,c:u8) -> bool {
+        fn test4(&mut self, f: u8, a: u8, b: u8, c: u8) -> bool {
             self.info = "X".to_string();
             println!("t3");
             true
@@ -322,7 +321,7 @@ mod tests {
         syncall_with_timeout!(ret, 1, sleep_test(s, &mut ifo), 10);
         println!("{:?}", ret);
 
-        syncall_with_signal_timeout!(ret, SignalExit, sleep_test(s, &mut ifo), 10,1);
+        syncall_with_signal_timeout!(ret, SignalExit, sleep_test(s, &mut ifo), 10, 1);
         println!("{:?}", ret);
     }
 
@@ -330,28 +329,26 @@ mod tests {
     fn test_atomic_call() {
         let mut timer = Instant::now();
         CrossThread::scope(|scope| {
-
             for _ in 0..10000 {
                 scope.spawn(|_| loop {
-
-                        let mut ret1 = 0;
-                        atomic_call!(CBK_MMT, test);
-                        atomic_call_arg1!(ret1, CBK_MMT, test1, 1);
-                        println!("test1 ret={:?}", ret1);
-                        let mut ret2 = "".to_string();
-                        atomic_call_arg2!(ret2, CBK_MMT, test2, 1, 2);
-                        println!("test2 ret={:?}", ret2);
-                        let mut ret3 = false;
-                        atomic_call_arg3!(ret3, CBK_MMT, test3, 1, 2, 3);
-                        println!("test3 ret={:?}", ret3);
-                        let mut ret4 = false;
-                        atomic_call_arg4!(ret4, CBK_MMT, test4, 1, 2, 3,4);
-                        println!("test4 ret={:?}", ret4);
-                        return;
+                    let mut ret1 = 0;
+                    atomic_call!(ret1,CBK_MMT, test);
+                    atomic_call_arg1!(ret1, CBK_MMT, test1, 1);
+                    println!("test1 ret={:?}", ret1);
+                    let mut ret2 = "".to_string();
+                    atomic_call_arg2!(ret2, CBK_MMT, test2, 1, 2);
+                    println!("test2 ret={:?}", ret2);
+                    let mut ret3 = false;
+                    atomic_call_arg3!(ret3, CBK_MMT, test3, 1, 2, 3);
+                    println!("test3 ret={:?}", ret3);
+                    let mut ret4 = false;
+                    atomic_call_arg4!(ret4, CBK_MMT, test4, 1, 2, 3, 4);
+                    println!("test4 ret={:?}", ret4);
+                    return;
                 });
             }
-            
-        }).unwrap();
+        })
+        .unwrap();
 
         println!("elapsed {:?}", timer.elapsed());
     }

@@ -1,4 +1,5 @@
 //#![feature(lazy_cell)]
+#![allow(non_snake_case)]
 
 #[cfg(feature = "fs")]
 pub mod fs;
