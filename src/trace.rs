@@ -81,7 +81,7 @@ macro_rules! init_global_tracing {
 #[cfg(feature = "trace")]
 mod tests {
     use super::*;
-    use crate::trace::metadata::LevelFilter;
+    use tracing_subscriber::filter::LevelFilter;
 
     #[test]
     fn test_init_log() {

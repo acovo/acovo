@@ -34,6 +34,13 @@ pub fn date_char8_zone(zone_name: &str) -> String {
 }
 
 #[cfg(feature = "time")]
+pub fn date_char8_zone2(zone_name: &str) -> String {
+    let tz: Tz = zone_name.parse().unwrap();
+    let now = Utc::now().with_timezone(&tz);
+    now.format("%Y%m%d").to_string()
+}
+
+#[cfg(feature = "time")]
 pub fn datetime_char14_zone(zone_name: &str) -> String {
     let tz: Tz = zone_name.parse().unwrap();
     let now = Utc::now().with_timezone(&tz);
