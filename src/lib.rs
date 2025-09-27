@@ -24,3 +24,6 @@ pub mod net;
 
 #[cfg(feature = "dev")]
 pub mod dev;
+
+#[cfg(feature = "http")]
+pub mod http;

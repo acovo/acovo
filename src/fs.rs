@@ -1,5 +1,5 @@
 #[cfg(feature = "fs")]
-use std::io;
+use std::{fs::File, io, path::Path};
 
 use anyhow::{anyhow, Result as AnyResult};
 
@@ -20,6 +20,15 @@ pub fn get_exe_dir() -> AnyResult<String> {
 #[cfg(feature = "fs")]
 pub fn mkdir(path: &str) -> io::Result<()> {
     std::fs::create_dir_all(path)
+}
+
+#[cfg(feature = "fs")]
+pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where P: AsRef<Path>, {
+    use std::io::BufRead;
+
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
 }
 
 #[cfg(test)]
