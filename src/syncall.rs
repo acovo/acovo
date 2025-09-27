@@ -256,7 +256,7 @@ mod tests {
     });
 
     pub trait MutableTrait {
-        fn test(&mut self)->u8;
+        fn test(&mut self) -> u8;
         fn test1(&mut self, f: u8) -> u8;
         fn test2(&mut self, f: u8, a: u8) -> String;
         fn test3(&mut self, f: u8, a: u8, b: u8) -> bool;
@@ -268,7 +268,7 @@ mod tests {
     }
 
     impl MutableTrait for MutableSystem {
-        fn test(&mut self)->u8 {
+        fn test(&mut self) -> u8 {
             self.info = "X".to_string();
             println!(".");
             0
@@ -332,7 +332,7 @@ mod tests {
             for _ in 0..10000 {
                 scope.spawn(|_| loop {
                     let mut ret1 = 0;
-                    atomic_call!(ret1,CBK_MMT, test);
+                    atomic_call!(ret1, CBK_MMT, test);
                     atomic_call_arg1!(ret1, CBK_MMT, test1, 1);
                     println!("test1 ret={:?}", ret1);
                     let mut ret2 = "".to_string();

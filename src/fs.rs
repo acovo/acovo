@@ -1,16 +1,20 @@
 #[cfg(feature = "fs")]
 use std::io;
 
+use anyhow::{anyhow, Result as AnyResult};
+
 #[cfg(feature = "fs")]
-pub fn get_exe_dir() -> String {
-    std::env::current_exe()
-        .unwrap()
+pub fn get_exe_dir() -> AnyResult<String> {
+    match std::env::current_exe()?
         .parent()
-        .unwrap()
+        .ok_or(anyhow!("ParentNotFound"))?
         .to_path_buf()
         .into_os_string()
         .into_string()
-        .unwrap()
+    {
+        Ok(data) => Ok(data),
+        Err(e) => Err(anyhow!("{:?}", e)),
+    }
 }
 
 #[cfg(feature = "fs")]
@@ -26,8 +30,8 @@ mod tests {
     #[test]
     fn test_get_exe_dir() {
         let result = get_exe_dir();
-        println!("got_exe_dir: {}", result);
-        assert_eq!(result.len() > 0, true);
+        println!("got_exe_dir: {:?}", result);
+        assert_eq!(result.unwrap().len() > 0, true);
     }
 
     #[test]

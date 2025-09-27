@@ -13,7 +13,7 @@ macro_rules! init_tracing {
         if std::env::var_os("RUST_LOG").is_none() {
             std::env::set_var("RUST_LOG", "poem=debug");
         }
-        let log_path = format!("{}/logs", get_exe_dir());
+        let log_path = format!("{}/logs", get_exe_dir().unwrap());
         let file_appender = tracing_appender::rolling::daily(log_path, $e);
         let format = tracing_subscriber::fmt::format()
             .with_level(true)

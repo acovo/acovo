@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        use serde_derive::{Deserialize};
+        use serde_derive::Deserialize;
 
         let data = r###"{}"###;
         let obj = serde_json::from_str::<Request<String>>(data);

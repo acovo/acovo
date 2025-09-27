@@ -9,7 +9,7 @@ license = "MIT"
 
 [features]
 time = ["chrono", "chrono-tz"]
-fs = []
+fs = ["anyhow"]
 proto = ["serde", "serde_derive", "anyhow", "serde_json"]
 error = []
 hash = ["crc64", "hex"]

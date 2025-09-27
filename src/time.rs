@@ -2,9 +2,9 @@
 use chrono::{Local, Utc};
 
 #[cfg(feature = "time")]
-use chrono_tz::Tz;
-#[cfg(feature = "time")]
 use chrono::TimeZone;
+#[cfg(feature = "time")]
+use chrono_tz::Tz;
 
 #[cfg(feature = "trace")]
 use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
