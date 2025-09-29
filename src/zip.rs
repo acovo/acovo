@@ -30,17 +30,19 @@ fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
             use std::io;
             let zip_item_name = file.name().replace("\\", "/");
 
-            if zip_item_name.contains("\\") {
+            if zip_item_name.len()>0 {
                 // create directory by filepath.
                 use crate::fs::mkdir;
 
-                let last_fs_pos = zip_item_name.rfind("\\").unwrap_or(0usize);
+                let last_fs_pos = zip_item_name.rfind("/").unwrap_or(0usize);
                 let mut zip_item_dir: String = "".into();
                 if last_fs_pos > 0 {
                     zip_item_dir = zip_item_name[0..last_fs_pos].to_string();
                 }
 
-                fs::create_dir_all(&zip_item_dir.replace("\\", "/"));
+                let out_dest_dir = format!("{}/{}",dest_dir,&zip_item_dir.replace("\\", "/"));
+                println!("CreateDirAll {}",out_dest_dir);
+                fs::create_dir_all(&out_dest_dir);
             }
 
             println!(
@@ -54,7 +56,10 @@ fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
                     fs::create_dir_all(p).unwrap();
                 }
             }
-            let mut outfile = fs::File::create(&zip_item_name).unwrap();
+
+            let out_data_file = format!("{}/{}",dest_dir,zip_item_name);
+            println!("ExtractTo {}",&out_data_file);
+            let mut outfile = fs::File::create(&out_data_file).unwrap();
             io::copy(&mut file, &mut outfile).unwrap();
         }
 
@@ -75,11 +80,15 @@ fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
 #[cfg(test)]
 #[cfg(feature = "compress")]
 mod tests {
+    use crate::fs::get_exe_parent_path;
+
     use super::*;
     use anyhow::{anyhow, Result as AnyResult};
 
     #[test]
     fn test_extract_zip() {
-        extract_zip("../test.zip", "");
+        let binding = get_exe_parent_path().unwrap();
+        let dest_dir = binding.to_str().unwrap();
+        extract_zip("../test.zip", dest_dir);
     }
 }
