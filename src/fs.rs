@@ -1,5 +1,5 @@
 #[cfg(feature = "fs")]
-use std::{fs::File, io, path::Path};
+use std::{fs::File, io, path::Path,path::PathBuf};
 
 use anyhow::{anyhow, Result as AnyResult};
 
@@ -30,6 +30,38 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
+
+#[cfg(feature = "fs")]
+pub fn get_exe_parent_path() -> AnyResult<PathBuf> {
+    let exe_dir = get_exe_dir()?;
+    let path = PathBuf::from(exe_dir);
+    let ret_option = path.parent().map(PathBuf::from);
+    if ret_option.is_some() {
+        Ok(ret_option.unwrap())
+    }else {
+        Err(anyhow!("PathNotFound"))
+    }
+}
+
+#[cfg(feature = "fs")]
+pub fn get_current_parent_path() -> AnyResult<PathBuf> {
+    use std::env;
+    let binding = env::current_dir().unwrap();
+    let current_dir = Path::new(&binding);
+    println!("current_dir {:?}", &current_dir);
+    let ret_option = current_dir.parent().map(PathBuf::from);
+    if ret_option.is_some() {
+        Ok(ret_option.unwrap())
+    }else {
+        Err(anyhow!("PathNotFound"))
+    }
+}
+
+#[cfg(feature = "fs")]
+pub fn get_parent_path(path: &Path) -> Option<PathBuf> {
+    path.parent().map(PathBuf::from)
+}
+
 
 #[cfg(test)]
 #[cfg(feature = "fs")]

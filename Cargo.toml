@@ -14,11 +14,12 @@ proto = ["serde", "serde_derive", "anyhow", "serde_json"]
 error = []
 hash = ["crc64", "hex"]
 trace = ["tracing-subscriber", "tracing-appender", "tracing"]
-default = ["time", "fs", "hash", "trace", "proto", "error", "dev", "net", "syncall", "http"]
+default = ["time", "fs", "hash", "trace", "proto", "error", "dev", "net", "syncall", "http","compress"]
 syncall = []
 net = []
 dev = []
 http = ["reqwest-proxy-pool","reqwest-middleware","tokio","reqwest","anyhow"]
+compress=["zip"]
 
 [dependencies]
 chrono = { version = "0.4", optional = true }
@@ -38,7 +39,8 @@ dns-lookup = { version = "2.0" }
 reqwest={version="*",optional = true}
 reqwest-proxy-pool = {version="0.1",optional = true,git="https://github.com/acovo/reqwest-proxy-pool" }
 reqwest-middleware = {version="0.4",optional = true }
-tokio = { version = "1", features = ["full"],optional = true}
+tokio = { version = "1", features = ["full"], optional = true}
+zip = { version = "5.1.1", optional = true}
 
 [dev-dependencies]
 crossbeam-utils = "0.8"

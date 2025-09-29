@@ -27,3 +27,6 @@ pub mod dev;
 
 #[cfg(feature = "http")]
 pub mod http;
+
+#[cfg(feature = "zip")]
+pub mod zip;
