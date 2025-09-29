@@ -1,5 +1,5 @@
 #[cfg(feature = "compress")]
-fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
+pub fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
     use std::fs;
 
     let fname = std::path::Path::new(filename);
