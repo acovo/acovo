@@ -41,16 +41,17 @@ pub fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
                 }
 
                 let out_dest_dir = format!("{}/{}",dest_dir,&zip_item_dir.replace("\\", "/"));
-                println!("CreateDirAll {}",out_dest_dir);
+                //println!("CreateDirAll {}",out_dest_dir);
                 fs::create_dir_all(&out_dest_dir);
             }
 
-            println!(
+            /*println!(
                 "File {} extracted to \"{}\" ({} bytes)",
                 i,
                 outpath.display(),
                 file.size()
-            );
+            );*/
+            //print!(".");
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
                     fs::create_dir_all(p).unwrap();
@@ -58,7 +59,7 @@ pub fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
             }
 
             let out_data_file = format!("{}/{}",dest_dir,zip_item_name);
-            println!("ExtractTo {}",&out_data_file);
+            //println!("ExtractTo {}",&out_data_file);
             let mut outfile = fs::File::create(&out_data_file).unwrap();
             io::copy(&mut file, &mut outfile).unwrap();
         }

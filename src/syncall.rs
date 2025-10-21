@@ -270,7 +270,7 @@ mod tests {
     impl MutableTrait for MutableSystem {
         fn test(&mut self) -> u8 {
             self.info = "X".to_string();
-            println!(".");
+            //println!(".");
             0
         }
 
