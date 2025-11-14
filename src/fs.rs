@@ -94,6 +94,34 @@ pub fn get_parent_path(path: &Path) -> Option<PathBuf> {
     path.parent().map(PathBuf::from)
 }
 
+pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+
+    if dir.is_dir() {
+        match std::fs::read_dir(dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let extension = path.extension();
+                            if extension.is_some() {
+                                if extension.unwrap() == ext {
+                                    files.push(path);
+                                }
+                            }
+                        } else if path.is_dir() {
+                            files.extend(list_files(&path, ext));
+                        }
+                    }
+                }
+            }
+            Err(e) => eprintln!("Failed to read directory {}: {}", dir.display(), e),
+        }
+    }
+    files
+}
+
 #[cfg(test)]
 #[cfg(feature = "fs")]
 mod tests {
