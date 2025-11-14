@@ -122,6 +122,13 @@ pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     files
 }
 
+pub fn file_name(path: PathBuf) -> Option<String> {
+    if let Some(file_name_os_str) = path.file_name() {
+        return Some(file_name_os_str.to_string_lossy().into_owned());
+    }
+    None
+}
+
 #[cfg(test)]
 #[cfg(feature = "fs")]
 mod tests {
