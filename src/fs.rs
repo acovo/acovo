@@ -33,7 +33,7 @@ where
 }
 
 #[cfg(feature = "fs")]
-fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<()> {
+pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<()> {
     println!("ToWriteLines {}", lines.len());
 
     if create == true {
