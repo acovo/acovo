@@ -42,7 +42,7 @@ pub fn extract_zip(filename: &str, dest_dir: &str) -> i32 {
 
                 let out_dest_dir = format!("{}/{}",dest_dir,&zip_item_dir.replace("\\", "/"));
                 //println!("CreateDirAll {}",out_dest_dir);
-                fs::create_dir_all(&out_dest_dir);
+                let _ = fs::create_dir_all(&out_dest_dir);
             }
 
             /*println!(
