@@ -1,6 +1,8 @@
 #[cfg(feature = "http")]
 mod tests {
     use anyhow::Result as AnyResult;
+    use reqwest_middleware::ClientBuilder;
+    use reqwest_proxy_pool::{ProxyPoolConfig, ProxyPoolMiddleware, ProxySelectionStrategy};
     use tokio::runtime::Runtime;
 
     use super::*;

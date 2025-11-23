@@ -1,3 +1,6 @@
+use crate::time::LocalTimeFormatter;
+use crate::fs::get_exe_dir;
+
 #[cfg(feature = "trace")]
 #[macro_export]
 macro_rules! init_tracing {
