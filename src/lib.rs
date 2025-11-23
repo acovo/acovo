@@ -33,3 +33,6 @@ pub mod http;
 
 #[cfg(feature = "zip")]
 pub mod zip;
+
+#[cfg(feature = "stock")]
+pub mod stock;
