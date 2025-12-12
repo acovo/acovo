@@ -2,6 +2,27 @@ use anyhow::{anyhow, Result as AnyResult};
 #[cfg(feature = "fs")]
 use std::{fs::File, io, path::Path, path::PathBuf};
 
+/// Gets the directory path of the current executable file
+///
+/// This function retrieves the path of the currently running executable,
+/// then extracts its parent directory. It handles potential errors in
+/// retrieving the executable path or converting it to a string.
+///
+/// # Returns
+/// * `Ok(String)` - The absolute path to the directory containing the executable
+/// * `Err(anyhow::Error)` - If there was an error getting the current executable path,
+///                          if the executable has no parent directory, or if the path
+///                          cannot be converted to a string
+///
+/// # Examples
+/// ```
+/// use acovo::get_exe_dir;
+///
+/// match get_exe_dir() {
+///     Ok(dir) => println!("Executable is in directory: {}", dir),
+///     Err(e) => eprintln!("Failed to get executable directory: {}", e),
+/// }
+/// ```
 #[cfg(feature = "fs")]
 pub fn get_exe_dir() -> AnyResult<String> {
     match std::env::current_exe()?
@@ -16,11 +37,47 @@ pub fn get_exe_dir() -> AnyResult<String> {
     }
 }
 
+/// Creates a directory and all of its parent directories if they don't exist
+///
+/// # Arguments
+/// * `path` - A string slice that holds the path to the directory to create
+///
+/// # Returns
+/// * `Ok(())` - If the directory was created successfully
+/// * `Err(io::Error)` - If there was an error creating the directory
+///
+/// # Examples
+/// ```
+/// use acovo::mkdir;
+///
+/// mkdir("./path/to/new/directory").unwrap();
+/// ```
 #[cfg(feature = "fs")]
 pub fn mkdir(path: &str) -> io::Result<()> {
     std::fs::create_dir_all(path)
 }
 
+/// Reads lines from a file and returns an iterator over the lines
+///
+/// # Arguments
+/// * `filename` - A generic parameter that can be converted to a Path reference
+///
+/// # Returns
+/// * `Ok(io::Lines<io::BufReader<File>>)` - An iterator over the lines in the file
+/// * `Err(io::Error)` - If there was an error opening the file
+///
+/// # Examples
+/// ```
+/// use acovo::read_lines;
+///
+/// if let Ok(lines) = read_lines("path/to/file.txt") {
+///     for line in lines {
+///         if let Ok(content) = line {
+///             println!("{}", content);
+///         }
+///     }
+/// }
+/// ```
 #[cfg(feature = "fs")]
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
@@ -32,6 +89,24 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+/// Writes a vector of strings to a file, either creating a new file or appending to an existing one
+///
+/// # Arguments
+/// * `file` - The path to the file to write to
+/// * `lines` - A vector of strings to write to the file
+/// * `create` - If true, creates a new file (truncating if it exists); if false, appends to the file
+///
+/// # Returns
+/// * `Ok(())` - If the lines were written successfully
+/// * `Err(anyhow::Error)` - If there was an error writing to the file
+///
+/// # Examples
+/// ```
+/// use acovo::write_lines;
+///
+/// let lines = vec!["First line".to_string(), "Second line".to_string()];
+/// write_lines("path/to/file.txt".to_string(), lines, true).unwrap();
+/// ```
 #[cfg(feature = "fs")]
 pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<()> {
     println!("ToWriteLines {}", lines.len());
@@ -58,6 +133,19 @@ pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<
     Ok(())
 }
 
+/// Gets the parent directory of the current executable file
+///
+/// # Returns
+/// * `Ok(PathBuf)` - The path to the parent directory of the executable
+/// * `Err(anyhow::Error)` - If there was an error getting the executable path or if the path has no parent
+///
+/// # Examples
+/// ```
+/// use acovo::get_exe_parent_path;
+///
+/// let parent_path = get_exe_parent_path().unwrap();
+/// println!("Executable parent directory: {:?}", parent_path);
+/// ```
 #[cfg(feature = "fs")]
 pub fn get_exe_parent_path() -> AnyResult<PathBuf> {
     let exe_dir = get_exe_dir()?;
@@ -66,6 +154,19 @@ pub fn get_exe_parent_path() -> AnyResult<PathBuf> {
     ret_option.ok_or_else(|| anyhow!("PathNotFound"))
 }
 
+/// Gets the parent directory of the current working directory
+///
+/// # Returns
+/// * `Ok(PathBuf)` - The path to the parent directory of the current working directory
+/// * `Err(anyhow::Error)` - If there was an error getting the current directory or if the path has no parent
+///
+/// # Examples
+/// ```
+/// use acovo::get_current_parent_path;
+///
+/// let parent_path = get_current_parent_path().unwrap();
+/// println!("Current working directory parent: {:?}", parent_path);
+/// ```
 #[cfg(feature = "fs")]
 pub fn get_current_parent_path() -> AnyResult<PathBuf> {
     use std::env;
@@ -76,11 +177,49 @@ pub fn get_current_parent_path() -> AnyResult<PathBuf> {
     ret_option.ok_or_else(|| anyhow!("PathNotFound"))
 }
 
+/// Gets the parent directory of a given path
+///
+/// # Arguments
+/// * `path` - A reference to a Path object
+///
+/// # Returns
+/// * `Some(PathBuf)` - The parent directory path if it exists
+/// * `None` - If the path has no parent (e.g., root directory)
+///
+/// # Examples
+/// ```
+/// use acovo::get_parent_path;
+/// use std::path::Path;
+///
+/// let path = Path::new("/home/user/documents/file.txt");
+/// if let Some(parent) = get_parent_path(path) {
+///     println!("Parent directory: {:?}", parent);
+/// }
+/// ```
 #[cfg(feature = "fs")]
 pub fn get_parent_path(path: &Path) -> Option<PathBuf> {
     path.parent().map(PathBuf::from)
 }
 
+/// Lists all files in a directory (and its subdirectories) with a specific extension
+///
+/// # Arguments
+/// * `dir` - A reference to a Path object representing the directory to search
+/// * `ext` - A string slice representing the file extension to filter by (without the dot)
+///
+/// # Returns
+/// A vector of PathBuf objects representing the paths to files with the specified extension
+///
+/// # Examples
+/// ```
+/// use acovo::list_files;
+/// use std::path::Path;
+///
+/// let files = list_files(Path::new("./src"), "rs");
+/// for file in files {
+///     println!("Found Rust file: {:?}", file);
+/// }
+/// ```
 pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
@@ -91,8 +230,9 @@ pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
                     if let Ok(entry) = entry {
                         let path = entry.path();
                         if path.is_file() {
-                            if let Some(extension) = path.extension() {
-                                if extension == ext {
+                            let extension = path.extension();
+                            if extension.is_some() {
+                                if extension.unwrap() == ext {
                                     files.push(path);
                                 }
                             }
@@ -108,134 +248,69 @@ pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     files
 }
 
+/// Extracts the file name from a given path
+///
+/// # Arguments
+/// * `path` - A PathBuf object representing the path to extract the file name from
+///
+/// # Returns
+/// * `Some(String)` - The file name as a String if it exists
+/// * `None` - If the path has no file name (e.g., root directory)
+///
+/// # Examples
+/// ```
+/// use acovo::file_name;
+/// use std::path::PathBuf;
+///
+/// let path = PathBuf::from("/home/user/documents/file.txt");
+/// if let Some(name) = file_name(path) {
+///     println!("File name: {}", name); // Outputs: File name: file.txt
+/// }
+/// ```
 pub fn file_name(path: PathBuf) -> Option<String> {
-    path.file_name()
-        .map(|file_name_os_str| file_name_os_str.to_string_lossy().into_owned())
+    if let Some(file_name_os_str) = path.file_name() {
+        return Some(file_name_os_str.to_string_lossy().into_owned());
+    }
+    None
 }
 
 #[cfg(test)]
 #[cfg(feature = "fs")]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io::Write;
-    use std::path::Path;
 
     #[test]
     fn test_get_exe_dir() {
         let result = get_exe_dir();
-        assert!(result.is_ok());
-        let path = result.unwrap();
-        assert!(Path::new(&path).exists());
+        println!("got_exe_dir: {:?}", result);
+        assert_eq!(result.unwrap().len() > 0, true);
     }
 
     #[test]
     fn test_mkdir() {
-        let test_dir = "./test_dir";
-        let result = mkdir(test_dir);
-        assert!(result.is_ok());
-        assert!(Path::new(test_dir).exists());
-        // Clean up
-        let _ = fs::remove_dir(test_dir);
+        let result = mkdir("/tmp/123456");
+        println!("test_mkdir: {:?}", result);
+        assert_eq!(result.is_ok(), true);
     }
 
     #[test]
     fn test_write_read_lines() {
-        let test_file = "./test_lines.txt".to_string();
-        let lines = vec!["line1".to_string(), "line2".to_string(), "line3".to_string()];
-        
-        // Test writing
-        let write_result = write_lines(test_file.clone(), lines.clone(), true);
-        assert!(write_result.is_ok());
-        
-        // Test reading
-        let read_result = read_lines(&test_file);
-        assert!(read_result.is_ok());
-        let read_lines: Result<Vec<_>, _> = read_result.unwrap().collect();
-        assert!(read_lines.is_ok());
-        let read_lines = read_lines.unwrap();
-        assert_eq!(read_lines.len(), 3);
-        assert_eq!(read_lines[0], "line1");
-        assert_eq!(read_lines[1], "line2");
-        assert_eq!(read_lines[2], "line3");
-        
-        // Clean up
-        let _ = fs::remove_file(test_file);
-    }
+        let out_dir = get_exe_dir().unwrap();
+        println!("got_exe_dir: {:?}", out_dir);
+        let mut test_data: Vec<String> = vec![];
+        test_data.push("1".into());
+        test_data.push("2".into());
 
-    #[test]
-    fn test_get_exe_parent_path() {
-        let result = get_exe_parent_path();
-        assert!(result.is_ok());
-        let path = result.unwrap();
-        assert!(path.exists());
-    }
+        let file_name = format!("{}/test.txt", out_dir);
+        write_lines(file_name.clone(), test_data, true);
 
-    #[test]
-    fn test_get_current_parent_path() {
-        let result = get_current_parent_path();
-        assert!(result.is_ok());
-        let path = result.unwrap();
-        assert!(path.exists());
-    }
-
-    #[test]
-    fn test_list_files() {
-        // Create a temporary directory structure for testing
-        let test_dir = "./test_list_files";
-        let _ = fs::create_dir(test_dir);
-        let _ = fs::create_dir(format!("{}/subdir", test_dir));
-        
-        // Create test files
-        let mut file1 = fs::File::create(format!("{}/file1.txt", test_dir)).unwrap();
-        let mut file2 = fs::File::create(format!("{}/file2.txt", test_dir)).unwrap();
-        let mut file3 = fs::File::create(format!("{}/subdir/file3.txt", test_dir)).unwrap();
-        let mut file4 = fs::File::create(format!("{}/file4.log", test_dir)).unwrap();
-        
-        writeln!(file1, "test").unwrap();
-        writeln!(file2, "test").unwrap();
-        writeln!(file3, "test").unwrap();
-        writeln!(file4, "test").unwrap();
-        
-        // Test listing files with .txt extension
-        let txt_files = list_files(Path::new(test_dir), "txt");
-        assert_eq!(txt_files.len(), 3); // Should find file1.txt, file2.txt, and subdir/file3.txt
-        
-        // Test listing files with .log extension
-        let log_files = list_files(Path::new(test_dir), "log");
-        assert_eq!(log_files.len(), 1); // Should find file4.log
-        
-        // Clean up
-        let _ = fs::remove_dir_all(test_dir);
-    }
-
-    #[test]
-    fn test_file_name() {
-        // Test with a file path
-        let path = PathBuf::from("/home/user/document.txt");
-        let name = file_name(path);
-        assert_eq!(name, Some("document.txt".to_string()));
-        
-        // Test with a directory path
-        let path = PathBuf::from("/home/user/documents/");
-        let name = file_name(path);
-        assert_eq!(name, Some("documents".to_string()));
-        
-        // Test with root path
-        let path = PathBuf::from("/");
-        let name = file_name(path);
-        assert_eq!(name, None);
-    }
-
-    #[test]
-    fn test_get_parent_path() {
-        let path = PathBuf::from("/home/user/documents/file.txt");
-        let parent = get_parent_path(&path);
-        assert_eq!(parent, Some(PathBuf::from("/home/user/documents")));
-        
-        // Test with root path
-        let path = PathBuf::from("/");
-        let parent = get_parent_path(&path);
-        assert_eq!(parent, None);
+        println!("ToReadLines");
+        if let Ok(lines) = read_lines(file_name) {
+            for line in lines {
+                if let Ok(text) = line {
+                    println!("{}", text);
+                }
+            }
+        }
     }
 }

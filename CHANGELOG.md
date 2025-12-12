@@ -6,6 +6,7 @@
 - Comprehensive unit tests for all functions in `src/fs.rs`
 - New `FindUsbDevicesByType` function to search for USB devices by device type (product name or vendor name) instead of just VID/PID
 - Test cases for the new `FindUsbDevicesByType` function
+- Comprehensive documentation comments for all functions in `src/fs.rs` including `get_exe_dir`, `mkdir`, `read_lines`, `write_lines`, `get_exe_parent_path`, `get_current_parent_path`, `get_parent_path`, `list_files`, and `file_name`
 
 ### Fixed
 - Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
