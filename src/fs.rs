@@ -89,6 +89,64 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+/// Reads lines from a file in batches, suitable for large files
+///
+/// This function is optimized for handling large files by processing them in batches,
+/// which reduces memory usage compared to loading the entire file into memory at once.
+///
+/// # Arguments
+/// * `file` - The path to the file to read from
+/// * `batch_size` - The number of lines to read in each batch
+/// * `process_batch` - A closure that takes a vector of strings (lines) and processes them
+///
+/// # Returns
+/// * `Ok(usize)` - The total number of lines processed
+/// * `Err(anyhow::Error)` - If there was an error reading the file
+///
+/// # Examples
+/// ```
+/// use acovo::read_lines_batched;
+///
+/// read_lines_batched("path/to/large_file.txt", 1000, |lines| {
+///     // Process the batch of lines
+///     println!("Processing {} lines", lines.len());
+///     Ok::<(), anyhow::Error>(())
+/// }).unwrap();
+/// ```
+#[cfg(feature = "fs")]
+pub fn read_lines_batched<F>(file: String, batch_size: usize, mut process_batch: F) -> AnyResult<usize>
+where
+    F: FnMut(Vec<String>) -> AnyResult<()>,
+{
+    use std::io::{BufRead, BufReader};
+    
+    let file = std::fs::File::open(&file)?;
+    let reader = BufReader::new(file);
+    
+    let mut total_processed = 0;
+    let mut current_batch = Vec::with_capacity(batch_size);
+    
+    for line in reader.lines() {
+        let line = line?;
+        current_batch.push(line);
+        
+        // When batch is full, process it
+        if current_batch.len() >= batch_size {
+            process_batch(current_batch.clone())?;
+            total_processed += current_batch.len();
+            current_batch.clear();
+        }
+    }
+    
+    // Process remaining items in the last batch
+    if !current_batch.is_empty() {
+        process_batch(current_batch.clone())?;
+        total_processed += current_batch.len();
+    }
+    
+    Ok(total_processed)
+}
+
 /// Writes a vector of strings to a file, either creating a new file or appending to an existing one
 ///
 /// # Arguments
@@ -133,6 +191,84 @@ pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<
     
     buf_writer.flush()?;
     Ok(())
+}
+
+/// Writes lines to a file in batches, suitable for large datasets
+///
+/// This function is optimized for handling large amounts of data by writing in batches,
+/// which reduces memory usage compared to loading all data into memory at once.
+///
+/// # Arguments
+/// * `file` - The path to the file to write to
+/// * `lines_iter` - An iterator that yields String references to write to the file
+/// * `batch_size` - The number of lines to write in each batch
+/// * `create` - If true, creates a new file (truncating if it exists); if false, appends to the file
+///
+/// # Returns
+/// * `Ok(usize)` - The total number of lines written
+/// * `Err(anyhow::Error)` - If there was an error writing to the file
+///
+/// # Examples
+/// ```
+/// use acovo::write_lines_batched;
+///
+/// let lines = vec!["Line 1".to_string(), "Line 2".to_string(), "Line 3".to_string()];
+/// write_lines_batched("path/to/file.txt", lines.iter(), 2, true).unwrap();
+/// ```
+#[cfg(feature = "fs")]
+pub fn write_lines_batched<I>(file: String, lines_iter: I, batch_size: usize, create: bool) -> AnyResult<usize>
+where
+    I: Iterator<Item = String>,
+{
+    use std::io::{BufWriter, Write};
+    
+    let file_writer = if create {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&file)?
+    } else {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&file)?
+    };
+
+    let mut buf_writer = BufWriter::new(file_writer);
+    let mut total_written = 0;
+    let mut batch_count = 0;
+    
+    let mut current_batch = Vec::with_capacity(batch_size);
+    
+    for line in lines_iter {
+        current_batch.push(line);
+        
+        // When batch is full, write it to file
+        if current_batch.len() >= batch_size {
+            for batch_line in current_batch.drain(..) {
+                buf_writer.write_all(batch_line.as_bytes())?;
+                buf_writer.write_all(b"\n")?;
+                total_written += 1;
+            }
+            
+            // Flush periodically to avoid excessive memory usage
+            batch_count += 1;
+            if batch_count % 100 == 0 {
+                buf_writer.flush()?;
+            }
+        }
+    }
+    
+    // Write remaining items in the last batch
+    for batch_line in current_batch {
+        buf_writer.write_all(batch_line.as_bytes())?;
+        buf_writer.write_all(b"\n")?;
+        total_written += 1;
+    }
+    
+    buf_writer.flush()?;
+    Ok(total_written)
 }
 
 /// Gets the parent directory of the current executable file
@@ -464,5 +600,54 @@ mod tests {
         let path = Path::new("/");
         let parent = get_parent_path(path);
         assert_eq!(parent, None);
+    }
+
+    #[test]
+    fn test_write_lines_batched() {
+        let test_file = "./test_batch_write.txt".to_string();
+        
+        // Create test data
+        let lines: Vec<String> = (0..1000).map(|i| format!("Line {}", i)).collect();
+        
+        // Test writing with batching
+        let written_count = write_lines_batched(test_file.clone(), lines.into_iter(), 100, true).unwrap();
+        assert_eq!(written_count, 1000);
+        
+        // Verify content was written correctly
+        let read_lines_result = read_lines(test_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 1000);
+        assert_eq!(collected_lines[0], "Line 0");
+        assert_eq!(collected_lines[999], "Line 999");
+        
+        // Clean up
+        std::fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_read_lines_batched() {
+        let test_file = "./test_batch_read.txt".to_string();
+        
+        // Create a test file with known content
+        let lines: Vec<String> = (0..500).map(|i| format!("Line {}", i)).collect();
+        write_lines(test_file.clone(), lines, true).unwrap();
+        
+        // Test reading with batching
+        let mut processed_count = 0;
+        let mut batch_count = 0;
+        
+        read_lines_batched(test_file.clone(), 100, |batch| {
+            batch_count += 1;
+            processed_count += batch.len();
+            // Verify batch content
+            assert_eq!(batch[0], format!("Line {}", (batch_count - 1) * 100));
+            Ok::<(), anyhow::Error>(())
+        }).unwrap();
+        
+        assert_eq!(processed_count, 500);
+        assert_eq!(batch_count, 5);
+        
+        // Clean up
+        std::fs::remove_file(test_file).unwrap();
     }
 }

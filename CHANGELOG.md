@@ -8,6 +8,8 @@
 - Test cases for the new `FindUsbDevicesByType` function
 - Comprehensive documentation comments for all functions in `src/fs.rs` including `get_exe_dir`, `mkdir`, `read_lines`, `write_lines`, `get_exe_parent_path`, `get_current_parent_path`, `get_parent_path`, `list_files`, and `file_name`
 - Additional unit tests for all functions in `src/fs.rs` to improve test coverage
+- New `write_lines_batched` function for efficient writing of large datasets
+- New `read_lines_batched` function for efficient processing of large files
 
 ### Fixed
 - Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
