@@ -414,6 +414,107 @@ pub fn file_name(path: PathBuf) -> Option<String> {
     None
 }
 
+/// Checks if a file or directory exists at the specified path
+///
+/// # Arguments
+/// * `path` - A generic parameter that can be converted to a Path reference
+///
+/// # Returns
+/// * `bool` - True if the file or directory exists, false otherwise
+///
+/// # Examples
+/// ```
+/// use acovo::file_exists;
+/// use std::path::Path;
+///
+/// let exists = file_exists("path/to/file.txt");
+/// if exists {
+///     println!("File exists");
+/// } else {
+///     println!("File does not exist");
+/// }
+/// ```
+#[cfg(feature = "fs")]
+pub fn file_exists<P>(path: P) -> bool
+where
+    P: AsRef<Path>,
+{
+    Path::new(path.as_ref()).exists()
+}
+
+/// Checks if a file or directory is readable (has read permissions)
+///
+/// # Arguments
+/// * `path` - A generic parameter that can be converted to a Path reference
+///
+/// # Returns
+/// * `bool` - True if the file or directory is readable, false otherwise
+///
+/// # Examples
+/// ```
+/// use acovo::file_readable;
+/// use std::path::Path;
+///
+/// let readable = file_readable("path/to/file.txt");
+/// if readable {
+///     println!("File is readable");
+/// } else {
+///     println!("File is not readable");
+/// }
+/// ```
+#[cfg(feature = "fs")]
+pub fn file_readable<P>(path: P) -> bool
+where
+    P: AsRef<Path>,
+{
+    use std::fs;
+    
+    fs::metadata(path).map(|metadata| metadata.permissions().readonly() == false).unwrap_or(false)
+}
+
+/// Checks if a file or directory is writable (has write permissions)
+///
+/// # Arguments
+/// * `path` - A generic parameter that can be converted to a Path reference
+///
+/// # Returns
+/// * `bool` - True if the file or directory is writable, false otherwise
+///
+/// # Examples
+/// ```
+/// use acovo::file_writable;
+/// use std::path::Path;
+///
+/// let writable = file_writable("path/to/file.txt");
+/// if writable {
+///     println!("File is writable");
+/// } else {
+///     println!("File is not writable");
+/// }
+/// ```
+#[cfg(feature = "fs")]
+pub fn file_writable<P>(path: P) -> bool
+where
+    P: AsRef<Path>,
+{
+    use std::fs;
+    
+    fs::metadata(path).map(|metadata| {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let mode = metadata.mode();
+            // Check if owner has write permission (user write bit)
+            (mode & 0o200) != 0
+        }
+        #[cfg(not(unix))]
+        {
+            // On non-Unix systems, check if it's not readonly
+            !metadata.permissions().readonly()
+        }
+    }).unwrap_or(false)
+}
+
 #[cfg(test)]
 #[cfg(feature = "fs")]
 mod tests {
@@ -600,6 +701,51 @@ mod tests {
         let path = Path::new("/");
         let parent = get_parent_path(path);
         assert_eq!(parent, None);
+    }
+
+    #[test]
+    fn test_file_exists() {
+        // Test with a file that should exist (this file itself)
+        let exists = file_exists(file!());
+        assert_eq!(exists, true);
+        
+        // Test with a file that should not exist
+        let exists = file_exists("/this/path/should/not/exist.txt");
+        assert_eq!(exists, false);
+    }
+
+    #[test]
+    fn test_file_readable() {
+        // Test with a file that should be readable (this file itself)
+        let readable = file_readable(file!());
+        assert_eq!(readable, true);
+        
+        // Test with a file that should not be readable
+        let readable = file_readable("/this/path/should/not/exist.txt");
+        assert_eq!(readable, false);
+    }
+
+    #[test]
+    fn test_file_writable() {
+        // Create a temporary test file
+        let test_file = "/tmp/acovo_test_writable.txt";
+        
+        // Create the test file
+        {
+            let mut file = std::fs::File::create(test_file).unwrap();
+            std::io::Write::write_all(&mut file, b"test content").unwrap();
+        }
+        
+        // Test that the file is writable
+        let writable = file_writable(test_file);
+        assert_eq!(writable, true);
+        
+        // Clean up
+        let _ = std::fs::remove_file(test_file);
+        
+        // Test with a file that should not be writable
+        let writable = file_writable("/this/path/should/not/exist.txt");
+        assert_eq!(writable, false);
     }
 
     #[test]
