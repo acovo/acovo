@@ -515,6 +515,57 @@ where
     }).unwrap_or(false)
 }
 
+/// Calculates the difference in seconds between a file's modification time and the current time
+///
+/// # Arguments
+/// * `path` - A generic parameter that can be converted to a Path reference
+///
+/// # Returns
+/// * `Ok(i64)` - The difference in seconds (positive if file is older, negative if file is newer)
+/// * `Err(anyhow::Error)` - If there was an error accessing the file metadata or calculating the time
+///
+/// # Examples
+/// ```
+/// use acovo::file_modified_seconds_ago;
+/// use std::path::Path;
+///
+/// match file_modified_seconds_ago("path/to/file.txt") {
+///     Ok(seconds) => println!("File was modified {} seconds ago", seconds),
+///     Err(e) => eprintln!("Error: {}", e),
+/// }
+/// ```
+#[cfg(feature = "fs")]
+pub fn file_modified_seconds_ago<P>(path: P) -> AnyResult<i64>
+where
+    P: AsRef<Path>,
+{
+    use std::time::{SystemTime, UNIX_EPOCH};
+    
+    // Get file metadata
+    let metadata = std::fs::metadata(path.as_ref()).map_err(|e| {
+        anyhow::anyhow!("Failed to access file metadata for {:?}: {}", path.as_ref(), e)
+    })?;
+    
+    // Get modification time
+    let modified = metadata.modified().map_err(|e| {
+        anyhow::anyhow!("Failed to get modification time for {:?}: {}", path.as_ref(), e)
+    })?;
+    
+    // Get current time
+    let now = SystemTime::now();
+    
+    // Calculate durations since UNIX epoch
+    let duration_since_epoch = now.duration_since(UNIX_EPOCH)
+        .map_err(|e| anyhow::anyhow!("System time is before UNIX epoch: {}", e))?;
+        
+    let modified_duration_since_epoch = modified.duration_since(UNIX_EPOCH)
+        .map_err(|e| anyhow::anyhow!("File modification time is before UNIX epoch: {}", e))?;
+    
+    // Calculate the difference in seconds
+    let seconds_diff = duration_since_epoch.as_secs() as i64 - modified_duration_since_epoch.as_secs() as i64;
+    Ok(seconds_diff)
+}
+
 #[cfg(test)]
 #[cfg(feature = "fs")]
 mod tests {
@@ -748,6 +799,8 @@ mod tests {
         assert_eq!(writable, false);
     }
 
+
+
     #[test]
     fn test_write_lines_batched() {
         let test_file = "./test_batch_write.txt".to_string();
@@ -795,5 +848,40 @@ mod tests {
         
         // Clean up
         std::fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_file_modified_seconds_ago() {
+        use std::thread;
+        use std::time::Duration;
+        use tempfile::TempDir;
+        
+        // Create a temporary directory for our test files
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test_modified_time.txt");
+        
+        // Create the test file
+        {
+            let mut file = std::fs::File::create(&test_file).unwrap();
+            std::io::Write::write_all(&mut file, b"test content").unwrap();
+        }
+        
+        // Wait a moment to ensure a measurable time difference
+        thread::sleep(Duration::from_secs(2));
+        
+        // Test that the file modification time calculation works
+        let seconds_ago = file_modified_seconds_ago(&test_file).unwrap();
+        assert!(seconds_ago >= 2, "Expected seconds_ago >= 2, got {}", seconds_ago);
+        
+        // Test with a file that should not exist
+        let non_existent_file = temp_dir.path().join("non_existent.txt");
+        let result = file_modified_seconds_ago(&non_existent_file);
+        assert!(result.is_err(), "Expected error for non-existent file");
+        
+        // Test error message for non-existent file
+        if let Err(e) = result {
+            assert!(e.to_string().contains("Failed to access file metadata"), 
+                "Error message should contain 'Failed to access file metadata', got: {}", e);
+        }
     }
 }

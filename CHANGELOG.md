@@ -1,11 +1,5 @@
 # Changelog
 
-## [Unreleased]
-### Added
-- New `file_exists` function to check if a file or directory exists
-- New `file_readable` function to check if a file or directory has read permissions
-- New `file_writable` function to check if a file or directory has write permissions
-
 ## [0.1.1] - 2025-12-12
 ### Added
 - Comprehensive unit tests for all functions in `src/fs.rs`
@@ -15,6 +9,10 @@
 - Additional unit tests for all functions in `src/fs.rs` to improve test coverage
 - New `write_lines_batched` function for efficient writing of large datasets
 - New `read_lines_batched` function for efficient processing of large files
+- New `file_exists` function to check if a file or directory exists
+- New `file_readable` function to check if a file or directory has read permissions
+- New `file_writable` function to check if a file or directory has write permissions
+- New `file_modified_seconds_ago` function to calculate the difference in seconds between a file's modification time and the current time with enhanced error handling
 
 ### Fixed
 - Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
