@@ -109,9 +109,9 @@ where
 /// ```
 #[cfg(feature = "fs")]
 pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<()> {
-    println!("ToWriteLines {}", lines.len());
-
-    let mut file_writer = if create {
+    use std::io::{BufWriter, Write};
+    
+    let file_writer = if create {
         std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -124,12 +124,14 @@ pub fn write_lines(file: String, lines: Vec<String>, create: bool) -> AnyResult<
             .open(&file)?
     };
 
-    use std::io::Write;
+    let mut buf_writer = BufWriter::new(file_writer);
+    
     for line in lines {
-        file_writer.write_all(line.as_bytes())?;
-        file_writer.write(b"\n")?;
+        buf_writer.write_all(line.as_bytes())?;
+        buf_writer.write_all(b"\n")?;
     }
-
+    
+    buf_writer.flush()?;
     Ok(())
 }
 
@@ -222,27 +224,29 @@ pub fn get_parent_path(path: &Path) -> Option<PathBuf> {
 /// ```
 pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     let mut files = Vec::new();
+    let mut dirs_to_visit = vec![dir.to_path_buf()];
 
-    if dir.is_dir() {
-        match std::fs::read_dir(dir) {
-            Ok(entries) => {
-                for entry in entries {
-                    if let Ok(entry) = entry {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let extension = path.extension();
-                            if extension.is_some() {
-                                if extension.unwrap() == ext {
-                                    files.push(path);
+    while let Some(current_dir) = dirs_to_visit.pop() {
+        if current_dir.is_dir() {
+            match std::fs::read_dir(&current_dir) {
+                Ok(entries) => {
+                    for entry in entries {
+                        if let Ok(entry) = entry {
+                            let path = entry.path();
+                            if path.is_file() {
+                                if let Some(extension) = path.extension() {
+                                    if extension == ext {
+                                        files.push(path);
+                                    }
                                 }
+                            } else if path.is_dir() {
+                                dirs_to_visit.push(path);
                             }
-                        } else if path.is_dir() {
-                            files.extend(list_files(&path, ext));
                         }
                     }
                 }
+                Err(e) => eprintln!("Failed to read directory {}: {}", current_dir.display(), e),
             }
-            Err(e) => eprintln!("Failed to read directory {}: {}", dir.display(), e),
         }
     }
     files
@@ -278,6 +282,8 @@ pub fn file_name(path: PathBuf) -> Option<String> {
 #[cfg(feature = "fs")]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
 
     #[test]
     fn test_get_exe_dir() {
@@ -312,5 +318,151 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_write_lines_create() {
+        let test_dir = "/tmp/acovo_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        let file_path = format!("{}/test_create.txt", test_dir);
+        let lines = vec!["Line 1".to_string(), "Line 2".to_string(), "Line 3".to_string()];
+        
+        let result = write_lines(file_path.clone(), lines.clone(), true);
+        assert!(result.is_ok());
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&file_path) {
+            let mut i = 0;
+            for line in read_lines {
+                if let Ok(content) = line {
+                    assert_eq!(content, lines[i]);
+                    i += 1;
+                }
+            }
+            assert_eq!(i, lines.len());
+        }
+        
+        // Clean up
+        let _ = fs::remove_file(&file_path);
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_write_lines_append() {
+        let test_dir = "/tmp/acovo_test_append";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        let file_path = format!("{}/test_append.txt", test_dir);
+        
+        // Write initial content
+        let initial_lines = vec!["Initial Line 1".to_string(), "Initial Line 2".to_string()];
+        let result = write_lines(file_path.clone(), initial_lines.clone(), true);
+        assert!(result.is_ok());
+        
+        // Append more content
+        let appended_lines = vec!["Appended Line 1".to_string(), "Appended Line 2".to_string()];
+        let result = write_lines(file_path.clone(), appended_lines.clone(), false);
+        assert!(result.is_ok());
+        
+        // Verify content
+        let expected_lines = vec![
+            "Initial Line 1",
+            "Initial Line 2",
+            "Appended Line 1",
+            "Appended Line 2"
+        ];
+        
+        if let Ok(read_lines) = read_lines(&file_path) {
+            let mut i = 0;
+            for line in read_lines {
+                if let Ok(content) = line {
+                    assert_eq!(content, expected_lines[i]);
+                    i += 1;
+                }
+            }
+            assert_eq!(i, expected_lines.len());
+        }
+        
+        // Clean up
+        let _ = fs::remove_file(&file_path);
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_list_files() {
+        let test_dir = "/tmp/acovo_list_files_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        // Create test files
+        let file1_path = format!("{}/file1.rs", test_dir);
+        let file2_path = format!("{}/file2.rs", test_dir);
+        let file3_path = format!("{}/file3.txt", test_dir);
+        
+        // Create subdirectory
+        let subdir_path = format!("{}/subdir", test_dir);
+        mkdir(&subdir_path).expect("Failed to create subdirectory");
+        let file4_path = format!("{}/file4.rs", subdir_path);
+        
+        // Write content to files
+        let mut file1 = fs::File::create(&file1_path).expect("Failed to create file1");
+        file1.write_all(b"// Test file 1").expect("Failed to write to file1");
+        
+        let mut file2 = fs::File::create(&file2_path).expect("Failed to create file2");
+        file2.write_all(b"// Test file 2").expect("Failed to write to file2");
+        
+        let mut file3 = fs::File::create(&file3_path).expect("Failed to create file3");
+        file3.write_all(b"# Test file 3").expect("Failed to write to file3");
+        
+        let mut file4 = fs::File::create(&file4_path).expect("Failed to create file4");
+        file4.write_all(b"// Test file 4").expect("Failed to write to file4");
+        
+        // Test listing .rs files
+        let rs_files = list_files(Path::new(test_dir), "rs");
+        assert_eq!(rs_files.len(), 3); // Should find 3 .rs files
+        
+        // Check that all returned paths are .rs files
+        for file_path in rs_files {
+            assert_eq!(file_path.extension().unwrap(), "rs");
+        }
+        
+        // Clean up
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_file_name() {
+        // Test with a file path
+        let path = PathBuf::from("/home/user/documents/file.txt");
+        let name = file_name(path);
+        assert_eq!(name, Some("file.txt".to_string()));
+        
+        // Test with a directory path
+        let path = PathBuf::from("/home/user/documents");
+        let name = file_name(path);
+        assert_eq!(name, Some("documents".to_string()));
+        
+        // Test with root path (no file name)
+        let path = PathBuf::from("/");
+        let name = file_name(path);
+        assert_eq!(name, None);
+    }
+
+    #[test]
+    fn test_get_parent_path() {
+        // Test with a file path
+        let path = Path::new("/home/user/documents/file.txt");
+        let parent = get_parent_path(path);
+        assert_eq!(parent, Some(PathBuf::from("/home/user/documents")));
+        
+        // Test with a directory path
+        let path = Path::new("/home/user/documents");
+        let parent = get_parent_path(path);
+        assert_eq!(parent, Some(PathBuf::from("/home/user")));
+        
+        // Test with root path (no parent)
+        let path = Path::new("/");
+        let parent = get_parent_path(path);
+        assert_eq!(parent, None);
     }
 }

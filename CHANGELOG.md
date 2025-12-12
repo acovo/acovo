@@ -7,6 +7,7 @@
 - New `FindUsbDevicesByType` function to search for USB devices by device type (product name or vendor name) instead of just VID/PID
 - Test cases for the new `FindUsbDevicesByType` function
 - Comprehensive documentation comments for all functions in `src/fs.rs` including `get_exe_dir`, `mkdir`, `read_lines`, `write_lines`, `get_exe_parent_path`, `get_current_parent_path`, `get_parent_path`, `list_files`, and `file_name`
+- Additional unit tests for all functions in `src/fs.rs` to improve test coverage
 
 ### Fixed
 - Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
@@ -25,6 +26,11 @@
 ### Changed
 - Updated `LinuxFindUsbDevice` function in `src/dev.rs` to use more robust parsing of `ioreg` output
 - Modified test cases in `src/dev.rs` to remove decimal equivalents of hexadecimal product IDs from comments
+- Refactored `write_lines` function to use buffered writer for improved performance
+- Removed `println!` statement from `write_lines` function
+- Optimized `list_files` function to use iterative approach instead of recursion to prevent stack overflow
+- Improved error handling in `list_files` function
+- Eliminated redundant calls to `extension.unwrap()` in `list_files` function
 
 ## [0.1.0] - 2024-01-01
 ### Added
