@@ -14,10 +14,15 @@
 - New `file_writable` function to check if a file or directory has write permissions
 - New `file_modified_seconds_ago` function to calculate the difference in seconds between a file's modification time and the current time with enhanced error handling
 - Additional edge case tests for all functions in `src/fs.rs`:
-- Enhanced `read_lines` tests to cover files with only whitespace characters and UTF-8 BOM
-- Enhanced `write_lines` tests to cover writing lines with only whitespace characters and UTF-8 BOM
-- New edge case tests for `read_lines_batched` function covering non-existent files, empty files, extreme batch sizes, and error propagation
-- New edge case tests for `write_lines_batched` function covering empty iterators, extreme batch sizes, append mode, and special character content
+  - Enhanced `read_lines` tests to cover files with only whitespace characters and UTF-8 BOM
+  - Enhanced `write_lines` tests to cover writing lines with only whitespace characters and UTF-8 BOM
+  - New edge case tests for `read_lines_batched` function covering non-existent files, empty files, extreme batch sizes, and error propagation
+  - New edge case tests for `write_lines_batched` function covering empty iterators, extreme batch sizes, append mode, and special character content
+- Comprehensive documentation and additional unit tests for `src/hash.rs`:
+  - Detailed documentation for the `crc64_str` function with examples
+  - Additional unit tests for various inputs including empty strings, Unicode characters, and different separators
+  - More comprehensive unit tests for edge cases including special characters, numeric strings, mixed case, single characters, repeated characters, whitespace only, and newlines/tabs
+- Performance optimizations for the `crc64_str` function with improved separator handling and reduced allocations
 
 ### Fixed
 - Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
