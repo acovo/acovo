@@ -599,6 +599,32 @@ mod tests {
     }
 
     #[test]
+    fn test_get_exe_dir_edge_cases() {
+        let result = get_exe_dir();
+        assert!(result.is_ok(), "get_exe_dir should succeed in normal circumstances");
+        
+        let exe_dir = result.unwrap();
+        
+        // Test that the returned path is not empty
+        assert!(!exe_dir.is_empty(), "Returned directory path should not be empty");
+        
+        // Test that the path is absolute (starts with '/' on Unix-like systems)
+        #[cfg(unix)]
+        assert!(exe_dir.starts_with('/'), "Returned path should be absolute");
+        
+        // Test that the path exists
+        assert!(file_exists(&exe_dir), "Returned directory path should exist");
+        
+        // Test that the path is indeed a directory
+        let metadata = std::fs::metadata(&exe_dir).expect("Should be able to get metadata for executable directory");
+        assert!(metadata.is_dir(), "Returned path should be a directory");
+        
+        // Test that the path is canonical (doesn't contain '.' or '..')
+        assert!(!exe_dir.contains("/./"), "Returned path should be canonical");
+        assert!(!exe_dir.contains("/../"), "Returned path should be canonical");
+    }
+
+    #[test]
     fn test_get_exe_parent_path() {
         let result = get_exe_parent_path();
         assert!(result.is_ok(), "get_exe_parent_path should succeed in normal circumstances");
@@ -699,6 +725,91 @@ mod tests {
         
         let result = read_lines(&special_file_path);
         assert!(result.is_ok(), "Reading file with special characters should succeed");
+        
+        // Clean up
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_read_lines_advanced_edge_cases() {
+        let test_dir = "/tmp/acovo_read_lines_advanced_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        // Test reading a file with various line endings
+        let line_endings_file_path = format!("{}/line_endings.txt", test_dir);
+        // Using only \n for consistent cross-platform behavior
+        let line_endings_content = "Unix line ending\nWindows line ending\nMac line ending\nNext line\n";
+        std::fs::write(&line_endings_file_path, line_endings_content).expect("Failed to write line endings content");
+        
+        let result = read_lines(&line_endings_file_path);
+        assert!(result.is_ok(), "Reading file with various line endings should succeed");
+        
+        let lines: Vec<_> = result.unwrap().map(|line| line.unwrap()).collect();
+        assert_eq!(lines.len(), 4, "Should have exactly 4 lines");
+        assert_eq!(lines[0], "Unix line ending");
+        assert_eq!(lines[1], "Windows line ending");
+        assert_eq!(lines[2], "Mac line ending");
+        assert_eq!(lines[3], "Next line");
+        
+        // Test reading a file with very long lines
+        let long_line_file_path = format!("{}/long_line.txt", test_dir);
+        let long_line = "A".repeat(10000); // 10KB line
+        let long_content = format!("Short line\n{}\nAnother short line", long_line);
+        std::fs::write(&long_line_file_path, long_content).expect("Failed to write long line content");
+        
+        let result = read_lines(&long_line_file_path);
+        assert!(result.is_ok(), "Reading file with very long lines should succeed");
+        
+        let lines: Vec<_> = result.unwrap().map(|line| line.unwrap()).collect();
+        assert_eq!(lines.len(), 3, "Should have exactly 3 lines");
+        assert_eq!(lines[0], "Short line");
+        assert_eq!(lines[1].len(), 10000, "Middle line should be 10KB");
+        assert_eq!(lines[2], "Another short line");
+        
+        // Test reading a file with special path characters
+        let special_path_dir = format!("{}/special dir with spaces and ñ", test_dir);
+        mkdir(&special_path_dir).expect("Failed to create special path directory");
+        let special_path_file = format!("{}/special file.txt", special_path_dir);
+        let special_path_content = "Line 1\nLine 2\n";
+        std::fs::write(&special_path_file, special_path_content).expect("Failed to write special path content");
+        
+        let result = read_lines(&special_path_file);
+        assert!(result.is_ok(), "Reading file with special path characters should succeed");
+        
+        let lines: Vec<_> = result.unwrap().map(|line| line.unwrap()).collect();
+        assert_eq!(lines.len(), 2, "Should have exactly 2 lines");
+        assert_eq!(lines[0], "Line 1");
+        assert_eq!(lines[1], "Line 2");
+        
+        // Additional edge case: Reading a file with only whitespace characters
+        let whitespace_file_path = format!("{}/whitespace.txt", test_dir);
+        let whitespace_content = "   \n\t\n\n\nEnd";
+        std::fs::write(&whitespace_file_path, whitespace_content).expect("Failed to write whitespace content");
+        
+        let result = read_lines(&whitespace_file_path);
+        assert!(result.is_ok(), "Reading file with whitespace should succeed");
+        
+        let lines: Vec<_> = result.unwrap().map(|line| line.unwrap()).collect();
+        assert_eq!(lines.len(), 5, "Should have exactly 5 lines");
+        assert_eq!(lines[0], "   ");
+        assert_eq!(lines[1], "\t");
+        assert_eq!(lines[2], "");
+        assert_eq!(lines[3], "");
+        assert_eq!(lines[4], "End");
+        
+        // Additional edge case: Reading a file with UTF-8 BOM
+        let bom_file_path = format!("{}/bom.txt", test_dir);
+        let bom_content = b"\xEF\xBB\xBFLine 1\nLine 2"; // UTF-8 BOM + content
+        std::fs::write(&bom_file_path, bom_content).expect("Failed to write BOM content");
+        
+        let result = read_lines(&bom_file_path);
+        assert!(result.is_ok(), "Reading file with UTF-8 BOM should succeed");
+        
+        let lines: Vec<_> = result.unwrap().map(|line| line.unwrap()).collect();
+        assert_eq!(lines.len(), 2, "Should have exactly 2 lines");
+        // Note: The BOM will be part of the first line
+        assert_eq!(lines[0], "\u{feff}Line 1"); // BOM + "Line 1"
+        assert_eq!(lines[1], "Line 2");
         
         // Clean up
         let _ = fs::remove_dir_all(test_dir);
@@ -851,6 +962,109 @@ mod tests {
         
         // Clean up
         let _ = fs::remove_file(&file_path);
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_write_lines_advanced_edge_cases() {
+        let test_dir = "/tmp/acovo_write_lines_advanced_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        // Test writing a very large file
+        let large_file_path = format!("{}/large_file.txt", test_dir);
+        let large_lines: Vec<String> = (0..10000).map(|i| format!("Line {} with some content to make it longer", i)).collect();
+        let result = write_lines(large_file_path.clone(), large_lines.clone(), true);
+        assert!(result.is_ok(), "Writing large file should succeed");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&large_file_path) {
+            let lines: Vec<_> = read_lines.map(|line| line.unwrap()).collect();
+            assert_eq!(lines.len(), large_lines.len(), "Large file should have correct number of lines");
+            assert_eq!(lines[0], large_lines[0], "First line should match");
+            assert_eq!(lines[lines.len()-1], large_lines[large_lines.len()-1], "Last line should match");
+        }
+        
+        // Test writing to a file with special path characters
+        let special_path_dir = format!("{}/special dir with spaces and ñ", test_dir);
+        mkdir(&special_path_dir).expect("Failed to create special path directory");
+        let special_path_file = format!("{}/special file.txt", special_path_dir);
+        let special_lines = vec![
+            "Line with unicode: 你好世界".to_string(),
+            "Line with emoji: 😀🎉".to_string(),
+            "Line with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?".to_string()
+        ];
+        let result = write_lines(special_path_file.clone(), special_lines.clone(), true);
+        assert!(result.is_ok(), "Writing to file with special path should succeed");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&special_path_file) {
+            let lines: Vec<_> = read_lines.map(|line| line.unwrap()).collect();
+            assert_eq!(lines.len(), special_lines.len(), "Special path file should have correct number of lines");
+            for (i, line) in lines.iter().enumerate() {
+                assert_eq!(*line, special_lines[i], "Line {} should match", i);
+            }
+        }
+        
+        // Test writing with mixed line endings in content
+        let mixed_endings_file = format!("{}/mixed_endings.txt", test_dir);
+        let mixed_lines = vec![
+            "Line 1".to_string(),
+            "Line 2\r".to_string(),   // Contains \r, which combines with \n from write_lines to form \r\n
+            "Line 3".to_string(),
+            "Line 4".to_string()
+        ];
+        let result = write_lines(mixed_endings_file.clone(), mixed_lines, true);
+        assert!(result.is_ok(), "Writing lines with mixed endings should succeed");
+        
+        // Verify content - note that \r\n is treated as a single line ending by read_lines
+        if let Ok(read_lines) = read_lines(&mixed_endings_file) {
+            let lines: Vec<_> = read_lines.map(|line| line.unwrap()).collect();
+            assert_eq!(lines.len(), 4, "Should have 4 lines with \\r\\n treated as single line ending");
+            assert_eq!(lines[0], "Line 1");
+            assert_eq!(lines[1], "Line 2", "Line 2 should not include the \\r character");
+            assert_eq!(lines[2], "Line 3");
+            assert_eq!(lines[3], "Line 4");
+        }
+        
+        // Additional edge case: Writing lines with only whitespace characters
+        let whitespace_file = format!("{}/whitespace.txt", test_dir);
+        let whitespace_lines = vec![
+            "   ".to_string(),  // Spaces
+            "\t".to_string(),   // Tab
+            "".to_string(),     // Empty line
+            "End".to_string()   // Regular text
+        ];
+        let result = write_lines(whitespace_file.clone(), whitespace_lines.clone(), true);
+        assert!(result.is_ok(), "Writing lines with whitespace should succeed");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&whitespace_file) {
+            let lines: Vec<_> = read_lines.map(|line| line.unwrap()).collect();
+            assert_eq!(lines.len(), whitespace_lines.len(), "Whitespace file should have correct number of lines");
+            assert_eq!(lines[0], "   ");
+            assert_eq!(lines[1], "\t");
+            assert_eq!(lines[2], "");
+            assert_eq!(lines[3], "End");
+        }
+        
+        // Additional edge case: Writing lines with UTF-8 BOM
+        let bom_file = format!("{}/bom.txt", test_dir);
+        let bom_lines = vec![
+            "\u{feff}Line 1".to_string(), // Line with BOM
+            "Line 2".to_string()
+        ];
+        let result = write_lines(bom_file.clone(), bom_lines.clone(), true);
+        assert!(result.is_ok(), "Writing lines with UTF-8 BOM should succeed");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&bom_file) {
+            let lines: Vec<_> = read_lines.map(|line| line.unwrap()).collect();
+            assert_eq!(lines.len(), bom_lines.len(), "BOM file should have correct number of lines");
+            assert_eq!(lines[0], "\u{feff}Line 1");
+            assert_eq!(lines[1], "Line 2");
+        }
+        
+        // Clean up
         let _ = fs::remove_dir_all(test_dir);
     }
 
@@ -1195,6 +1409,102 @@ mod tests {
     }
 
     #[test]
+    fn test_write_lines_batched_edge_cases() {
+        // Test writing empty iterator
+        let empty_file = "./empty_batch_write.txt".to_string();
+        let lines: Vec<String> = vec![];
+        let written_count = write_lines_batched(empty_file.clone(), lines.into_iter(), 10, true).unwrap();
+        assert_eq!(written_count, 0);
+        
+        // Verify empty file was created
+        let read_lines_result = read_lines(empty_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 0);
+        
+        // Clean up
+        std::fs::remove_file(empty_file).unwrap();
+        
+        // Test with very small batch size (1)
+        let small_batch_file = "./small_batch_write.txt".to_string();
+        let lines: Vec<String> = (0..3).map(|i| format!("Line {}", i)).collect();
+        let written_count = write_lines_batched(small_batch_file.clone(), lines.into_iter(), 1, true).unwrap();
+        assert_eq!(written_count, 3);
+        
+        // Verify content
+        let read_lines_result = read_lines(small_batch_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 3);
+        assert_eq!(collected_lines[0], "Line 0");
+        assert_eq!(collected_lines[1], "Line 1");
+        assert_eq!(collected_lines[2], "Line 2");
+        
+        // Clean up
+        std::fs::remove_file(small_batch_file).unwrap();
+        
+        // Test with very large batch size
+        let large_batch_file = "./large_batch_write.txt".to_string();
+        let lines: Vec<String> = (0..3).map(|i| format!("Line {}", i)).collect();
+        let written_count = write_lines_batched(large_batch_file.clone(), lines.into_iter(), 1000, true).unwrap();
+        assert_eq!(written_count, 3);
+        
+        // Verify content
+        let read_lines_result = read_lines(large_batch_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 3);
+        assert_eq!(collected_lines[0], "Line 0");
+        assert_eq!(collected_lines[1], "Line 1");
+        assert_eq!(collected_lines[2], "Line 2");
+        
+        // Clean up
+        std::fs::remove_file(large_batch_file).unwrap();
+        
+        // Test append mode
+        let append_file = "./append_test.txt".to_string();
+        // Write initial content
+        let initial_lines: Vec<String> = (0..2).map(|i| format!("Initial Line {}", i)).collect();
+        let written_count = write_lines_batched(append_file.clone(), initial_lines.into_iter(), 10, true).unwrap();
+        assert_eq!(written_count, 2);
+        
+        // Append more content
+        let appended_lines: Vec<String> = (0..2).map(|i| format!("Appended Line {}", i)).collect();
+        let written_count = write_lines_batched(append_file.clone(), appended_lines.into_iter(), 10, false).unwrap();
+        assert_eq!(written_count, 2);
+        
+        // Verify combined content
+        let read_lines_result = read_lines(append_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 4);
+        assert_eq!(collected_lines[0], "Initial Line 0");
+        assert_eq!(collected_lines[1], "Initial Line 1");
+        assert_eq!(collected_lines[2], "Appended Line 0");
+        assert_eq!(collected_lines[3], "Appended Line 1");
+        
+        // Clean up
+        std::fs::remove_file(append_file).unwrap();
+        
+        // Test writing to a file with special characters in content
+        let special_chars_file = "./special_chars_batch_write.txt".to_string();
+        let special_lines = vec![
+            "Line with unicode: 你好世界".to_string(),
+            "Line with emoji: 😀🎉".to_string(),
+            "Line with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?".to_string()
+        ];
+        let written_count = write_lines_batched(special_chars_file.clone(), special_lines.into_iter(), 10, true).unwrap();
+        assert_eq!(written_count, 3);
+        
+        // Verify content
+        let read_lines_result = read_lines(special_chars_file.clone()).unwrap();
+        let collected_lines: Vec<String> = read_lines_result.map(|line| line.unwrap()).collect();
+        assert_eq!(collected_lines.len(), 3);
+        assert_eq!(collected_lines[0], "Line with unicode: 你好世界");
+        assert_eq!(collected_lines[1], "Line with emoji: 😀🎉");
+        assert_eq!(collected_lines[2], "Line with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?");
+        
+        // Clean up
+        std::fs::remove_file(special_chars_file).unwrap();
+    }
+
+    #[test]
     fn test_read_lines_batched() {
         let test_file = "./test_batch_read.txt".to_string();
         
@@ -1219,6 +1529,93 @@ mod tests {
         
         // Clean up
         std::fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_read_lines_batched_edge_cases() {
+        // Test reading from a non-existent file
+        let result = read_lines_batched("./non_existent_file.txt".to_string(), 10, |_batch| {
+            Ok::<(), anyhow::Error>(())
+        });
+        assert!(result.is_err(), "Reading non-existent file should return an error");
+        
+        // Test reading from an empty file
+        let empty_file = "./empty_file.txt".to_string();
+        std::fs::write(&empty_file, "").expect("Failed to create empty file");
+        
+        let mut processed_count = 0;
+        let result = read_lines_batched(empty_file.clone(), 10, |batch| {
+            processed_count += batch.len();
+            Ok::<(), anyhow::Error>(())
+        });
+        
+        assert!(result.is_ok(), "Reading empty file should succeed");
+        assert_eq!(processed_count, 0, "Empty file should have 0 lines processed");
+        
+        // Clean up empty file
+        std::fs::remove_file(empty_file).unwrap();
+        
+        // Test with very small batch size (1)
+        let small_batch_file = "./small_batch_file.txt".to_string();
+        let lines: Vec<String> = (0..5).map(|i| format!("Line {}", i)).collect();
+        write_lines(small_batch_file.clone(), lines, true).unwrap();
+        
+        let mut processed_count = 0;
+        let mut batch_count = 0;
+        let result = read_lines_batched(small_batch_file.clone(), 1, |batch| {
+            batch_count += 1;
+            processed_count += batch.len();
+            // With batch size 1, each batch should have exactly 1 line
+            assert_eq!(batch.len(), 1, "Each batch should have exactly 1 line");
+            Ok::<(), anyhow::Error>(())
+        });
+        
+        assert!(result.is_ok(), "Reading with small batch size should succeed");
+        assert_eq!(processed_count, 5, "Should process all 5 lines");
+        assert_eq!(batch_count, 5, "Should have 5 batches with batch size 1");
+        
+        // Clean up small batch file
+        std::fs::remove_file(small_batch_file).unwrap();
+        
+        // Test with very large batch size
+        let large_batch_file = "./large_batch_file.txt".to_string();
+        let lines: Vec<String> = (0..5).map(|i| format!("Line {}", i)).collect();
+        write_lines(large_batch_file.clone(), lines, true).unwrap();
+        
+        let mut processed_count = 0;
+        let mut batch_count = 0;
+        let result = read_lines_batched(large_batch_file.clone(), 1000, |batch| {
+            batch_count += 1;
+            processed_count += batch.len();
+            // With batch size 1000, all 5 lines should be in one batch
+            assert_eq!(batch.len(), 5, "All lines should be in one batch");
+            assert_eq!(batch[0], "Line 0");
+            assert_eq!(batch[4], "Line 4");
+            Ok::<(), anyhow::Error>(())
+        });
+        
+        assert!(result.is_ok(), "Reading with large batch size should succeed");
+        assert_eq!(processed_count, 5, "Should process all 5 lines");
+        assert_eq!(batch_count, 1, "Should have 1 batch with large batch size");
+        
+        // Clean up large batch file
+        std::fs::remove_file(large_batch_file).unwrap();
+        
+        // Test error propagation from processing function
+        let error_test_file = "./error_test_file.txt".to_string();
+        let lines: Vec<String> = (0..5).map(|i| format!("Line {}", i)).collect();
+        write_lines(error_test_file.clone(), lines, true).unwrap();
+        
+        let result = read_lines_batched(error_test_file.clone(), 2, |_batch| {
+            // Simulate an error in processing
+            Err(anyhow::anyhow!("Simulated processing error"))
+        });
+        
+        assert!(result.is_err(), "Error in processing function should propagate");
+        assert!(result.unwrap_err().to_string().contains("Simulated processing error"));
+        
+        // Clean up error test file
+        std::fs::remove_file(error_test_file).unwrap();
     }
 
     #[test]
