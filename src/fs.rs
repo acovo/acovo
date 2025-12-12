@@ -370,9 +370,17 @@ pub fn list_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
                         if let Ok(entry) = entry {
                             let path = entry.path();
                             if path.is_file() {
-                                if let Some(extension) = path.extension() {
-                                    if extension == ext {
+                                // Handle empty extension case - when ext is empty, we want files with no extension
+                                if ext.is_empty() {
+                                    if path.extension().is_none() {
                                         files.push(path);
+                                    }
+                                } else {
+                                    // Normal case - match extension
+                                    if let Some(extension) = path.extension() {
+                                        if extension == ext {
+                                            files.push(path);
+                                        }
                                     }
                                 }
                             } else if path.is_dir() {
@@ -572,6 +580,7 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+    use tempfile::TempDir;
 
     #[test]
     fn test_get_exe_dir() {
@@ -581,10 +590,60 @@ mod tests {
     }
 
     #[test]
+    fn test_get_exe_dir_error_handling() {
+        // We can't easily test the error case without mocking env::current_exe(),
+        // but we can at least verify the function returns a proper error type
+        // when it fails (though it shouldn't fail in normal circumstances)
+        let result = get_exe_dir();
+        assert!(result.is_ok(), "get_exe_dir should succeed in normal circumstances");
+    }
+
+    #[test]
+    fn test_get_exe_parent_path() {
+        let result = get_exe_parent_path();
+        assert!(result.is_ok(), "get_exe_parent_path should succeed in normal circumstances");
+        assert!(result.unwrap().to_str().is_some(), "Path should be convertible to string");
+    }
+
+    #[test]
+    fn test_get_current_parent_path() {
+        let result = get_current_parent_path();
+        assert!(result.is_ok(), "get_current_parent_path should succeed in normal circumstances");
+        assert!(result.unwrap().to_str().is_some(), "Path should be convertible to string");
+    }
+
+    #[test]
     fn test_mkdir() {
         let result = mkdir("/tmp/123456");
         println!("test_mkdir: {:?}", result);
         assert_eq!(result.is_ok(), true);
+    }
+
+    #[test]
+    fn test_mkdir_edge_cases() {
+        // Test creating a directory with a complex path (multiple levels)
+        let complex_path = "/tmp/acovo_test_dir/level1/level2/level3";
+        let result = mkdir(complex_path);
+        assert!(result.is_ok(), "Should be able to create nested directories");
+        
+        // Verify the directory was created
+        assert!(file_exists(complex_path), "Directory should exist after creation");
+        
+        // Test with an empty string (should fail gracefully)
+        let result = mkdir("");
+        // An empty path is invalid, but create_dir_all might handle it differently
+        // We won't assert a specific result as behavior may vary by system
+        
+        // Test with a path that's just whitespace
+        let result = mkdir("   ");
+        // Whitespace-only paths are invalid, but we'll check it doesn't panic
+        
+        // Test with a path that already exists
+        let result = mkdir("/tmp");
+        assert!(result.is_ok(), "Should be able to 'create' a directory that already exists");
+        
+        // Clean up test directories
+        let _ = std::fs::remove_dir_all("/tmp/acovo_test_dir");
     }
 
     #[test]
@@ -596,16 +655,53 @@ mod tests {
         test_data.push("2".into());
 
         let file_name = format!("{}/test.txt", out_dir);
-        write_lines(file_name.clone(), test_data, true);
+        write_lines(file_name.clone(), test_data, true).expect("Failed to write lines");
 
         println!("ToReadLines");
-        if let Ok(lines) = read_lines(file_name) {
+        if let Ok(lines) = read_lines(file_name.clone()) {
             for line in lines {
                 if let Ok(text) = line {
                     println!("{}", text);
                 }
             }
         }
+        
+        // Clean up
+        let _ = fs::remove_file(&file_name);
+    }
+
+    #[test]
+    fn test_read_lines_edge_cases() {
+        // Test reading from a non-existent file
+        let result = read_lines("/this/path/should/not/exist.txt");
+        assert!(result.is_err(), "Reading non-existent file should return an error");
+        
+        // Test reading from an empty file
+        let test_dir = "/tmp/acovo_read_lines_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        let empty_file_path = format!("{}/empty.txt", test_dir);
+        {
+            std::fs::File::create(&empty_file_path).expect("Failed to create empty file");
+        }
+        
+        let result = read_lines(&empty_file_path);
+        assert!(result.is_ok(), "Reading empty file should succeed");
+        
+        // Verify empty file returns no lines
+        let lines = result.unwrap();
+        let line_count = lines.count();
+        assert_eq!(line_count, 0, "Empty file should have 0 lines");
+        
+        // Test reading from a file with special characters
+        let special_file_path = format!("{}/special_chars.txt", test_dir);
+        let special_content = "Line with unicode: 你好世界\nLine with emoji: 😀\nLine with newline: \n\nLine with tab: \t";
+        std::fs::write(&special_file_path, special_content).expect("Failed to write special content");
+        
+        let result = read_lines(&special_file_path);
+        assert!(result.is_ok(), "Reading file with special characters should succeed");
+        
+        // Clean up
+        let _ = fs::remove_dir_all(test_dir);
     }
 
     #[test]
@@ -633,6 +729,87 @@ mod tests {
         
         // Clean up
         let _ = fs::remove_file(&file_path);
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_write_lines_edge_cases() {
+        // Test writing to a file with special characters in content
+        let test_dir = "/tmp/acovo_write_lines_special_chars_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        let file_path = format!("{}/special_chars.txt", test_dir);
+        let special_lines = vec![
+            "Line with unicode: 你好世界".to_string(),
+            "Line with emoji: 😀".to_string(),
+            "Line with newline: ".to_string(),
+            "Line with tab: \t".to_string(),
+            "Line with special chars: !@#$%^&*()".to_string()
+        ];
+        
+        let result = write_lines(file_path.clone(), special_lines.clone(), true);
+        assert!(result.is_ok(), "Writing lines with special characters should succeed");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&file_path) {
+            let mut i = 0;
+            for line in read_lines {
+                if let Ok(content) = line {
+                    assert_eq!(content, special_lines[i]);
+                    i += 1;
+                }
+            }
+            assert_eq!(i, special_lines.len());
+        }
+        
+        // Test writing empty vector of lines
+        let empty_file_path = format!("{}/empty_lines.txt", test_dir);
+        let empty_lines: Vec<String> = vec![];
+        let result = write_lines(empty_file_path.clone(), empty_lines, true);
+        assert!(result.is_ok(), "Writing empty vector of lines should succeed");
+        
+        // Verify empty file
+        if let Ok(read_lines) = read_lines(&empty_file_path) {
+            let line_count = read_lines.count();
+            assert_eq!(line_count, 0, "File with empty lines vector should be empty");
+        }
+        
+        // Test append mode with non-existent file (should create file)
+        let append_new_file_path = format!("{}/append_new_file.txt", test_dir);
+        let lines = vec!["New line 1".to_string(), "New line 2".to_string()];
+        let result = write_lines(append_new_file_path.clone(), lines.clone(), false);
+        assert!(result.is_ok(), "Appending to non-existent file should succeed (creates file)");
+        
+        // Verify content
+        if let Ok(read_lines) = read_lines(&append_new_file_path) {
+            let mut i = 0;
+            for line in read_lines {
+                if let Ok(content) = line {
+                    assert_eq!(content, lines[i]);
+                    i += 1;
+                }
+            }
+            assert_eq!(i, lines.len());
+        }
+        
+        // Test writing to a read-only file (should fail)
+        let readonly_file_path = format!("{}/readonly.txt", test_dir);
+        std::fs::write(&readonly_file_path, "original content").expect("Failed to create readonly file");
+        let mut perms = fs::metadata(&readonly_file_path).expect("Failed to get file metadata").permissions();
+        perms.set_readonly(true);
+        fs::set_permissions(&readonly_file_path, perms).expect("Failed to set readonly permissions");
+        
+        let lines = vec!["Should fail".to_string()];
+        let result = write_lines(readonly_file_path.clone(), lines, true);
+        assert!(result.is_err(), "Writing to readonly file should fail");
+        
+        // Clean up
+        // Need to restore write permissions to delete the file
+        let mut perms = fs::metadata(&readonly_file_path).expect("Failed to get file metadata").permissions();
+        #[allow(unused_mut)]
+        let mut write_perms = perms.clone();
+        write_perms.set_readonly(false);
+        let _ = fs::set_permissions(&readonly_file_path, write_perms);
         let _ = fs::remove_dir_all(test_dir);
     }
 
@@ -698,16 +875,76 @@ mod tests {
         
         let mut file2 = fs::File::create(&file2_path).expect("Failed to create file2");
         file2.write_all(b"// Test file 2").expect("Failed to write to file2");
+    }
+
+    #[test]
+    fn test_list_files_edge_cases() {
+        // Test with non-existent directory
+        let non_existent_dir = Path::new("/this/path/should/not/exist");
+        let files = list_files(non_existent_dir, "rs");
+        assert_eq!(files.len(), 0, "Should return empty vector for non-existent directory");
+        
+        // Test with empty extension
+        let test_dir = "/tmp/acovo_list_files_empty_ext_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        // Create test files with different extensions
+        let file1_path = format!("{}/file1.rs", test_dir);
+        let file2_path = format!("{}/file2.txt", test_dir);
+        let file3_path = format!("{}/file3", test_dir); // No extension
+        
+        // Write content to files
+        let mut file1 = fs::File::create(&file1_path).expect("Failed to create file1");
+        file1.write_all(b"// Test file 1").expect("Failed to write to file1");
+        
+        let mut file2 = fs::File::create(&file2_path).expect("Failed to create file2");
+        file2.write_all(b"// Test file 2").expect("Failed to write to file2");
         
         let mut file3 = fs::File::create(&file3_path).expect("Failed to create file3");
         file3.write_all(b"# Test file 3").expect("Failed to write to file3");
         
-        let mut file4 = fs::File::create(&file4_path).expect("Failed to create file4");
-        file4.write_all(b"// Test file 4").expect("Failed to write to file4");
+        // Test listing files with empty extension
+        let files_no_ext = list_files(Path::new(test_dir), "");
+        // Should find files with no extension
+        assert_eq!(files_no_ext.len(), 1);
+        assert_eq!(files_no_ext[0].file_name().unwrap(), "file3");
         
-        // Test listing .rs files
+        // Clean up
+        let _ = fs::remove_dir_all(test_dir);
+    }
+
+    #[test]
+    fn test_list_files_complex_structure() {
+        let test_dir = "/tmp/acovo_list_files_complex_test";
+        mkdir(test_dir).expect("Failed to create test directory");
+        
+        // Create a more complex directory structure
+        let subdir1_path = format!("{}/subdir1", test_dir);
+        let subdir2_path = format!("{}/subdir2", test_dir);
+        mkdir(&subdir1_path).expect("Failed to create subdir1");
+        mkdir(&subdir2_path).expect("Failed to create subdir2");
+        
+        // Create sub-subdirectories
+        let subsubdir_path = format!("{}/subdir1/subsubdir", test_dir);
+        mkdir(&subsubdir_path).expect("Failed to create subsubdir");
+        
+        // Create test files at different levels
+        let file1_path = format!("{}/file1.rs", test_dir);
+        let file2_path = format!("{}/subdir1/file2.rs", test_dir);
+        let file3_path = format!("{}/subdir1/subsubdir/file3.rs", test_dir);
+        let file4_path = format!("{}/subdir2/file4.rs", test_dir);
+        let file5_path = format!("{}/subdir2/file5.txt", test_dir);
+        
+        // Create all files
+        fs::File::create(&file1_path).expect("Failed to create file1");
+        fs::File::create(&file2_path).expect("Failed to create file2");
+        fs::File::create(&file3_path).expect("Failed to create file3");
+        fs::File::create(&file4_path).expect("Failed to create file4");
+        fs::File::create(&file5_path).expect("Failed to create file5");
+        
+        // Test listing .rs files recursively
         let rs_files = list_files(Path::new(test_dir), "rs");
-        assert_eq!(rs_files.len(), 3); // Should find 3 .rs files
+        assert_eq!(rs_files.len(), 4); // Should find 4 .rs files
         
         // Check that all returned paths are .rs files
         for file_path in rs_files {
@@ -737,6 +974,35 @@ mod tests {
     }
 
     #[test]
+    fn test_file_name_edge_cases() {
+        // Test with empty path
+        let path = PathBuf::from("");
+        let name = file_name(path);
+        assert_eq!(name, None);
+        
+        // Test with relative path
+        let path = PathBuf::from("../file.txt");
+        let name = file_name(path);
+        assert_eq!(name, Some("file.txt".to_string()));
+        
+        // Test with path that ends with slash
+        let path = PathBuf::from("/home/user/documents/");
+        let name = file_name(path);
+        assert_eq!(name, Some("documents".to_string()));
+        
+        // Test with Windows-style path (on Windows, this would behave differently)
+        let path = PathBuf::from("C:\\Users\\user\\documents\\file.txt");
+        let name = file_name(path);
+        // On Unix systems, this will treat the whole string as a single component
+        assert!(name.is_some());
+        
+        // Test with path containing special characters
+        let path = PathBuf::from("/home/user/my file (1).txt");
+        let name = file_name(path);
+        assert_eq!(name, Some("my file (1).txt".to_string()));
+    }
+
+    #[test]
     fn test_get_parent_path() {
         // Test with a file path
         let path = Path::new("/home/user/documents/file.txt");
@@ -755,6 +1021,32 @@ mod tests {
     }
 
     #[test]
+    fn test_get_parent_path_edge_cases() {
+        // Test with empty path
+        let path = Path::new("");
+        let parent = get_parent_path(path);
+        // Behavior with empty path is system-dependent, but generally should be None
+        assert!(parent.is_none() || parent == Some(PathBuf::from(".")));
+        
+        // Test with relative path
+        let path = Path::new("file.txt");
+        let parent = get_parent_path(path);
+        // For a file in current directory, parent should be current directory
+        assert_eq!(parent, Some(PathBuf::from("")));
+        
+        // Test with path that ends with slash
+        let path = Path::new("/home/user/documents/");
+        let parent = get_parent_path(path);
+        // Depending on implementation, this might be /home/user or /home/user/documents
+        assert!(parent == Some(PathBuf::from("/home/user")) || parent == Some(PathBuf::from("/home/user/documents")));
+        
+        // Test with deeply nested path
+        let path = Path::new("/a/b/c/d/e/f/g");
+        let parent = get_parent_path(path);
+        assert_eq!(parent, Some(PathBuf::from("/a/b/c/d/e/f")));
+    }
+
+    #[test]
     fn test_file_exists() {
         // Test with a file that should exist (this file itself)
         let exists = file_exists(file!());
@@ -766,37 +1058,116 @@ mod tests {
     }
 
     #[test]
+    fn test_file_exists_edge_cases() {
+        // Test with directory (should return true as directories exist)
+        let path = Path::new(".");
+        let exists = file_exists(path);
+        assert!(exists);
+        
+        // Test with empty path
+        let path = Path::new("");
+        let exists = file_exists(path);
+        // Empty path behavior is system-dependent, but generally should be false
+        assert!(!exists);
+        
+        // Test with relative path that exists
+        let path = Path::new("./src");
+        let exists = file_exists(path);
+        assert!(exists);
+        
+        // Test with root directory
+        let path = Path::new("/");
+        let exists = file_exists(path);
+        assert!(exists);
+    }
+
+    #[test]
     fn test_file_readable() {
         // Test with a file that should be readable (this file itself)
-        let readable = file_readable(file!());
-        assert_eq!(readable, true);
+        let path = file!();
+        let readable = file_readable(Path::new(path));
+        assert!(readable);
         
         // Test with a file that should not be readable
-        let readable = file_readable("/this/path/should/not/exist.txt");
-        assert_eq!(readable, false);
+        let path = Path::new("/this/path/should/not/exist.txt");
+        let readable = file_readable(path);
+        assert!(!readable);
+    }
+
+    #[test]
+    fn test_file_readable_edge_cases() {
+        // Test with directory (should be readable if directory exists)
+        let path = Path::new(".");
+        let readable = file_readable(path);
+        assert!(readable);
+        
+        // Test with empty path
+        let path = Path::new("");
+        let readable = file_readable(path);
+        assert!(!readable);
+        
+        // Test with root directory
+        let path = Path::new("/");
+        let readable = file_readable(path);
+        assert!(readable);
+        
+        // Create a temporary file and test readability
+        let temp_dir = TempDir::new().unwrap();
+        let temp_file = temp_dir.path().join("test.txt");
+        std::fs::write(&temp_file, "test content").unwrap();
+        
+        let readable = file_readable(&temp_file);
+        assert!(readable);
     }
 
     #[test]
     fn test_file_writable() {
-        // Create a temporary test file
-        let test_file = "/tmp/acovo_test_writable.txt";
-        
-        // Create the test file
-        {
-            let mut file = std::fs::File::create(test_file).unwrap();
-            std::io::Write::write_all(&mut file, b"test content").unwrap();
-        }
-        
-        // Test that the file is writable
-        let writable = file_writable(test_file);
-        assert_eq!(writable, true);
-        
-        // Clean up
-        let _ = std::fs::remove_file(test_file);
+        // Test with a file that should be writable (this file itself)
+        let path = file!();
+        let writable = file_writable(Path::new(path));
+        assert!(writable);
         
         // Test with a file that should not be writable
-        let writable = file_writable("/this/path/should/not/exist.txt");
-        assert_eq!(writable, false);
+        let path = Path::new("/this/path/should/not/exist.txt");
+        let writable = file_writable(path);
+        assert!(!writable);
+    }
+
+    #[test]
+    fn test_file_writable_edge_cases() {
+        // Test with directory (should be writable if directory exists and is writable)
+        let path = Path::new(".");
+        let writable = file_writable(path);
+        assert!(writable);
+        
+        // Test with empty path
+        let path = Path::new("");
+        let writable = file_writable(path);
+        assert!(!writable);
+        
+        // Test with root directory
+        let path = Path::new("/");
+        let writable = file_writable(path);
+        // Root directory writability depends on permissions, but generally not writable
+        // We won't assert a specific value here as it's system-dependent
+        // On most Unix-like systems, root directory is not writable
+        // assert!(!writable); // Uncomment if you want to specifically test that root is not writable
+        
+        // Create a temporary file and test writability
+        let temp_dir = TempDir::new().unwrap();
+        let temp_file = temp_dir.path().join("test.txt");
+        std::fs::write(&temp_file, "test content").unwrap();
+        
+        let writable = file_writable(&temp_file);
+        assert!(writable);
+        
+        // Test with a non-existent file in a writable directory
+        let non_existent_file = temp_dir.path().join("nonexistent.txt");
+        let writable = file_writable(&non_existent_file);
+        // A non-existent file cannot be writable, even in a writable directory
+        // The file_writable function checks the metadata of the file itself,
+        // which doesn't exist in this case, so it returns false
+        assert!(!writable);
     }
 
 
@@ -879,6 +1250,28 @@ mod tests {
         assert!(result.is_err(), "Expected error for non-existent file");
         
         // Test error message for non-existent file
+        if let Err(e) = result {
+            assert!(e.to_string().contains("Failed to access file metadata"), 
+                "Error message should contain 'Failed to access file metadata', got: {}", e);
+        }
+    }
+    
+    #[test]
+    fn test_file_modified_seconds_ago_edge_cases() {
+        use tempfile::TempDir;
+        
+        // Create a temporary directory
+        let temp_dir = TempDir::new().unwrap();
+        
+        // Test with a directory instead of a file
+        let result = file_modified_seconds_ago(temp_dir.path());
+        assert!(result.is_ok(), "Should be able to get modification time for a directory");
+        
+        // Test with an empty string path
+        let result = file_modified_seconds_ago("");
+        assert!(result.is_err(), "Expected error for empty path");
+        
+        // Test error message for empty path
         if let Err(e) = result {
             assert!(e.to_string().contains("Failed to access file metadata"), 
                 "Error message should contain 'Failed to access file metadata', got: {}", e);

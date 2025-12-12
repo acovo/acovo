@@ -27,6 +27,8 @@
   - AX88179 (0b95:1790)
   - USB Optical Mouse (046d:c077)
   - Razer Cynosa Pro (1532:020d)
+- Fixed `list_files` function to properly handle empty file extensions in search
+- Corrected `file_writable` test cases to align with actual function behavior
 
 ### Changed
 - Updated `LinuxFindUsbDevice` function in `src/dev.rs` to use more robust parsing of `ioreg` output
