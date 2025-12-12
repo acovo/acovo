@@ -87,7 +87,7 @@ impl<T> Request<T> {
 
 // State represents the status of a response with a code and message
 #[cfg(feature = "proto")]
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct State {
     // Status code (typically follows HTTP status codes)
     pub ret_code: u32,
@@ -302,6 +302,44 @@ mod tests {
         assert_eq!(req.validate().unwrap_err().to_string(), "sign data is required！");
     }
 
+    // Test Request::validate with empty signature
+    #[test]
+    fn test_request_validate_empty_signature() {
+        let mut req = Request::<u32>::new(Some(1));
+        req.head = Some(RequestHeader {
+            version: None,
+            action: None,
+            sign: Some("".to_string()),  // Empty signature
+            timestamp: None,
+            sender: None,
+        });
+        assert_eq!(req.validate().is_ok(), true);  // Empty string is still Some(String)
+    }
+
+    // Test Request::validate with whitespace-only signature
+    #[test]
+    fn test_request_validate_whitespace_signature() {
+        let mut req = Request::<u32>::new(Some(1));
+        req.head = Some(RequestHeader {
+            version: None,
+            action: None,
+            sign: Some("   ".to_string()),  // Whitespace-only signature
+            timestamp: None,
+            sender: None,
+        });
+        assert_eq!(req.validate().is_ok(), true);  // Whitespace string is still Some(String)
+    }
+
+    // Test Request::validate error message formatting
+    #[test]
+    fn test_request_validate_error_message() {
+        let req = Request::<u32>::new(Some(1));
+        let result = req.validate();
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "sign data is required！");
+    }
+
     // Test Response::new method
     #[test]
     fn test_response_new() {
@@ -326,6 +364,31 @@ mod tests {
         assert_eq!(resp.body, None);
     }
 
+    // Test Response::new_with_state with empty message
+    #[test]
+    fn test_response_new_with_state_empty_message() {
+        let resp = Response::<String>::new_with_state(404, "");
+        assert!(resp.state.is_some());
+        let state = resp.state.unwrap();
+        assert_eq!(state.ret_code, 404);
+        assert_eq!(state.ret_message, Some("".to_string()));
+        assert_eq!(resp.head, None);
+        assert_eq!(resp.body, None);
+    }
+
+    // Test Response::new_with_state with special characters in message
+    #[test]
+    fn test_response_new_with_state_special_message() {
+        let special_msg = "!@#$%^&*()_+-=[]{}|;':\",./<>?";
+        let resp = Response::<String>::new_with_state(500, special_msg);
+        assert!(resp.state.is_some());
+        let state = resp.state.unwrap();
+        assert_eq!(state.ret_code, 500);
+        assert_eq!(state.ret_message, Some(special_msg.to_string()));
+        assert_eq!(resp.head, None);
+        assert_eq!(resp.body, None);
+    }
+
     // Test Response::raiseRequestError method
     #[test]
     fn test_response_raise_request_error() {
@@ -336,6 +399,31 @@ mod tests {
         let state = resp.state.unwrap();
         assert_eq!(state.ret_code, 404);
         assert_eq!(state.ret_message, Some("Not Found".to_string()));
+    }
+
+    // Test Response::raiseRequestError with empty message
+    #[test]
+    fn test_response_raise_request_error_empty() {
+        let mut resp = Response::<String>::new(Some("test_body".to_string()));
+        resp.raiseRequestError(400, "");
+        
+        assert!(resp.state.is_some());
+        let state = resp.state.unwrap();
+        assert_eq!(state.ret_code, 400);
+        assert_eq!(state.ret_message, Some("".to_string()));
+    }
+
+    // Test Response::raiseRequestError with special characters
+    #[test]
+    fn test_response_raise_request_error_special_chars() {
+        let special_msg = "!@#$%^&*()_+-=[]{}|;':\",./<>?";
+        let mut resp = Response::<String>::new(Some("test_body".to_string()));
+        resp.raiseRequestError(500, special_msg);
+        
+        assert!(resp.state.is_some());
+        let state = resp.state.unwrap();
+        assert_eq!(state.ret_code, 500);
+        assert_eq!(state.ret_message, Some(special_msg.to_string()));
     }
 
     // Test State serialization and deserialization
@@ -349,6 +437,43 @@ mod tests {
         let json_str = serde_json::to_string(&state).unwrap();
         let deserialized_state: State = serde_json::from_str(&json_str).unwrap();
         
+        assert_eq!(state.ret_code, deserialized_state.ret_code);
+        assert_eq!(state.ret_message, deserialized_state.ret_message);
+    }
+
+    // Test State serialization with None message
+    #[test]
+    fn test_state_serialization_none_message() {
+        let state = State {
+            ret_code: 404,
+            ret_message: None,
+        };
+        
+        let json_str = serde_json::to_string(&state).unwrap();
+        // When ret_message is None, it should be omitted from JSON due to skip_serializing_if
+        assert!(!json_str.contains("ret_message"));
+        assert!(json_str.contains("ret_code"));
+        
+        let deserialized_state: State = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(state.ret_code, deserialized_state.ret_code);
+        assert_eq!(state.ret_message, deserialized_state.ret_message);
+    }
+
+    // Test State serialization with empty message
+    #[test]
+    fn test_state_serialization_empty_message() {
+        let state = State {
+            ret_code: 500,
+            ret_message: Some("".to_string()),
+        };
+        
+        let json_str = serde_json::to_string(&state).unwrap();
+        // When ret_message is Some("") it should be included in JSON
+        assert!(json_str.contains("ret_message"));
+        assert!(json_str.contains("\"\""));
+        assert!(json_str.contains("ret_code"));
+        
+        let deserialized_state: State = serde_json::from_str(&json_str).unwrap();
         assert_eq!(state.ret_code, deserialized_state.ret_code);
         assert_eq!(state.ret_message, deserialized_state.ret_message);
     }
@@ -424,5 +549,75 @@ mod tests {
         assert_eq!(resp.body, deserialized_resp.body);
         assert_eq!(resp.state.as_ref().unwrap().ret_code, deserialized_resp.state.as_ref().unwrap().ret_code);
         assert_eq!(resp.state.as_ref().unwrap().ret_message, deserialized_resp.state.as_ref().unwrap().ret_message);
+    }
+
+    // Test Request with None body serialization
+    #[test]
+    fn test_request_none_body_serialization() {
+        let req = Request::<String>::new(None);
+        let json_str = serde_json::to_string(&req).unwrap();
+        assert!(json_str.contains("\"body\":null") || !json_str.contains("body"));
+        
+        let deserialized_req: Request<String> = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(req.body, deserialized_req.body);
+    }
+
+    // Test Response with None body serialization
+    #[test]
+    fn test_response_none_body_serialization() {
+        let resp = Response::<String>::new(None);
+        let json_str = serde_json::to_string(&resp).unwrap();
+        assert!(json_str.contains("\"body\":null") || !json_str.contains("body"));
+        
+        let deserialized_resp: Response<String> = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(resp.body, deserialized_resp.body);
+    }
+
+    // Test RequestHeader with all fields None except sign
+    #[test]
+    fn test_request_header_minimal_fields() {
+        let header = RequestHeader {
+            version: None,
+            action: None,
+            sign: Some("test_sign".to_string()),
+            timestamp: None,
+            sender: None,
+        };
+        
+        assert_eq!(header.sign, Some("test_sign".to_string()));
+        assert_eq!(header.version, None);
+        assert_eq!(header.action, None);
+        assert_eq!(header.timestamp, None);
+        assert_eq!(header.sender, None);
+    }
+
+    // Test ResponseHeader with all fields None except sign
+    #[test]
+    fn test_response_header_minimal_fields() {
+        let header = ResponseHeader {
+            version: None,
+            action: None,
+            sign: Some("test_sign".to_string()),
+            timestamp: None,
+            host: None,
+        };
+        
+        assert_eq!(header.sign, Some("test_sign".to_string()));
+        assert_eq!(header.version, None);
+        assert_eq!(header.action, None);
+        assert_eq!(header.timestamp, None);
+        assert_eq!(header.host, None);
+    }
+
+    // Test State with high ret_code values
+    #[test]
+    fn test_state_high_ret_code() {
+        let state = State {
+            ret_code: 999999,
+            ret_message: Some("High code test".to_string()),
+        };
+        
+        assert_eq!(state.ret_code, 999999);
+        assert_eq!(state.ret_message, Some("High code test".to_string()));
     }
 }

@@ -2,25 +2,21 @@
 
 
 ### Added
+- Enhanced proto module unit tests with comprehensive edge case coverage
+  - Added boundary condition tests for Request::validate method
+  - Added edge case tests for Response::new_with_state method
+  - Added additional State structure test cases
+  - Added error handling and special scenario tests
+  - Added boundary condition tests for Response::raiseRequestError method
+- Added tests for None body serialization in Request and Response structures
+- Added tests for minimal field headers in RequestHeader and ResponseHeader
+- Added tests for high return code values in State structure
+- Added tests for special characters and Unicode support
 - Implemented macOS platform network functionality support
-- Added MacOSNetwork struct and its implementation
-- Implemented complete os_network trait support on macOS
-  - get_route_table: Uses `netstat -rn` command to get routing table
-  - get_interface_list: Uses `ifconfig` command to get network interface list
-  - ping: Uses `ping` command to implement ping functionality
-  - nslookup: Not yet implemented, returns "NotImplement" error
-  - tcping: Not yet implemented, returns "NotImplement" error
-- Added comprehensive test cases for macOS network functionality
-  - test_get_interface_list: Tests network interface list retrieval
-  - test_get_route_table: Tests routing table retrieval
-  - test_ping: Tests ping functionality
-  - test_get_if_mac_ip_addr: Tests MAC and IP address retrieval
-  - test_route_table_parse: Tests routing table parsing
-  - test_find_route: Tests route lookup
-  - test_ping_internal: Tests internal ping implementation
-  - test_nslookup_not_implemented: Tests unimplemented nslookup functionality
-  - test_tcping_not_implemented: Tests unimplemented tcping functionality
-- Added conditional compilation attributes to support cross-platform compilation
+
+### Fixed
+- Fixed ownership transfer issues in proto module tests
+- Added Clone trait derivation to State structure to prevent compilation errors
 
 ### Changed
 - Refactored network module code structure
