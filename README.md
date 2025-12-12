@@ -26,6 +26,12 @@ The library includes enhanced USB device detection capabilities on macOS, with s
 - MACROSILICON devices
 - Razer devices
 
+### Available Functions
+
+- `LinuxFindUsbDevice(vid, pid)`: Search for a USB device by Vendor ID and Product ID
+- `ListUsbDevices()`: List all connected USB devices
+- `FindUsbDevicesByType(device_type)`: Search for USB devices by device type (product name or vendor name)
+
 ## Installation
 
 Add this to your `Cargo.toml`:

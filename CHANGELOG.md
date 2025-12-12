@@ -4,6 +4,10 @@
 
 ## [0.1.1] - 2025-12-12
 
+### Added
+- New `FindUsbDevicesByType` function to search for USB devices by device type (product name or vendor name) instead of just VID/PID
+- Test cases for the new `FindUsbDevicesByType` function
+
 ### Fixed
 - Improved USB device detection on macOS by expanding search range from ±20 to ±30 lines
 - Enhanced search algorithm to first collect device block lines before checking for product ID

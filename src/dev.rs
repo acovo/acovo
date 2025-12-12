@@ -165,6 +165,143 @@ pub fn LinuxFindUsbDevice(vid: &str, pid: &str) -> AnyResult<bool> {
 }
 
 #[cfg(feature = "dev")]
+/// Search for USB devices by device type (product name or vendor name) on Linux/macOS.
+/// 
+/// This function searches for USB devices based on their product or vendor names rather than IDs.
+/// On macOS, it uses the `ioreg` command to find devices with matching "USB Product Name" or 
+/// "USB Vendor Name" properties.
+/// 
+/// # Parameters
+/// - `device_type`: The device type to search for (e.g., "AX88179", "Logitech", "Apple")
+/// 
+/// # Returns
+/// - `Ok(Vec<String>)`: A vector of strings containing information about matching devices
+/// - `Err`: If there's an error executing the system command
+/// 
+/// # Platform Notes
+/// - On Linux, requires `lsusb` to be installed (usually part of usbutils package)
+/// - On macOS, uses the built-in `ioreg` command
+/// - On other platforms, returns an error indicating lack of support
+/// 
+/// # Example
+/// ```rust
+/// use acovo::dev::FindUsbDevicesByType;
+/// 
+/// #[cfg(feature = "dev")]
+/// match FindUsbDevicesByType("AX88179") {
+///     Ok(devices) => {
+///         if devices.is_empty() {
+///             println!("No devices of type 'AX88179' found");
+///         } else {
+///             println!("Found {} devices of type 'AX88179':", devices.len());
+///             for device in devices {
+///                 println!("  {}", device);
+///             }
+///         }
+///     },
+///     Err(e) => println!("Error: {}", e),
+/// }
+/// ```
+#[cfg(feature = "dev")]
+pub fn FindUsbDevicesByType(device_type: &str) -> AnyResult<Vec<String>> {
+    use std::process::Command;
+    use anyhow::{anyhow, Result as AnyResult};
+    
+    // Determine which command to use based on the operating system
+    if cfg!(target_os = "linux") {
+        // Execute the lsusb command on Linux
+        match Command::new("/bin/lsusb").output() {
+            Ok(output) => {
+                // Convert the command output to a UTF-8 string
+                let sOutput = String::from_utf8(output.stdout)?;
+                
+                // Check if the output is empty (indicating an error)
+                if sOutput.len() == 0 {
+                    // If stdout is empty, check stderr for error information
+                    let sErr = String::from_utf8(output.stderr)?;
+                    return Err(anyhow!("find-usb-devices-by-type-error {}", sErr));
+                }
+                
+                // Split the output into individual device entries (one per line)
+                let usblist = sOutput.split("\n");
+                let mut matching_devices = Vec::new();
+                
+                // Iterate through each device entry to find matches
+                for dev in usblist {
+                    // Check if this device entry contains our target device type
+                    if dev.to_lowercase().contains(&device_type.to_lowercase()) {
+                        matching_devices.push(dev.to_string());
+                    }
+                }
+                
+                Ok(matching_devices)
+            }
+            // Handle errors from executing the lsusb command
+            Err(e) => {
+                Err(anyhow!("Failed to execute lsusb command: {}. Check that lsusb is installed (usually part of usbutils package).", e))
+            }
+        }
+    } else if cfg!(target_os = "macos") {
+        // Execute the ioreg command on macOS with detailed output
+        match Command::new("/usr/sbin/ioreg").args(["-p", "IOUSB", "-w", "0", "-l"]).output() {
+            Ok(output) => {
+                // Convert the command output to a UTF-8 string
+                let sOutput = String::from_utf8(output.stdout)?;
+                
+                // Check if the output is empty (indicating an error)
+                if sOutput.len() == 0 {
+                    // If stdout is empty, check stderr for error information
+                    let sErr = String::from_utf8(output.stderr)?;
+                    return Err(anyhow!("find-usb-devices-by-type-error {}", sErr));
+                }
+                
+                // Split the output into lines for easier processing
+                let lines: Vec<&str> = sOutput.lines().collect();
+                let mut matching_devices = Vec::new();
+                let device_type_lower = device_type.to_lowercase();
+                
+                // Search for devices with matching product or vendor names
+                for i in 0..lines.len() {
+                    let line = lines[i];
+                    
+                    // Look for "USB Product Name" or "USB Vendor Name" properties
+                    if line.contains("\"USB Product Name\"") || line.contains("\"USB Vendor Name\"") {
+                        // Check if the line contains our target device type
+                        if line.to_lowercase().contains(&device_type_lower) {
+                            // Found a matching device, collect information about it
+                            let start = i.saturating_sub(10); // Look up to 10 lines before
+                            let end = std::cmp::min(i + 20, lines.len()); // Look up to 20 lines after
+                            
+                            // Collect device information
+                            let mut device_info = String::new();
+                            for j in start..end {
+                                if lines[j].trim_start().starts_with("}") {
+                                    // End of device block
+                                    break;
+                                }
+                                device_info.push_str(lines[j]);
+                                device_info.push('\n');
+                            }
+                            
+                            matching_devices.push(device_info);
+                        }
+                    }
+                }
+                
+                Ok(matching_devices)
+            }
+            // Handle errors from executing the ioreg command
+            Err(e) => {
+                Err(anyhow!("Failed to execute ioreg command: {}. Check that ioreg is available on this system.", e))
+            }
+        }
+    } else {
+        // Unsupported platform
+        Err(anyhow!("Finding USB devices by type is not supported on this platform ({}). Only Linux and macOS are supported.", std::env::consts::OS))
+    }
+}
+
+#[cfg(feature = "dev")]
 /// List all USB devices on Linux/macOS systems.
 /// 
 /// This function uses different system utilities depending on the platform:
@@ -359,5 +496,17 @@ mod tests {
             assert!(devices.contains("Bus") && devices.contains("Device"));
             println!("✓ Verified Linux lsusb output format (contains 'Bus' and 'Device')");
         }
+    }
+    
+    #[cfg(feature = "dev")]
+    #[test]
+    fn test_find_usb_devices_by_type() {
+        // Test that the function runs without panicking
+        let result = FindUsbDevicesByType("Apple");
+        assert!(result.is_ok(), "FindUsbDevicesByType should not panic");
+        
+        // Test with a non-existent device type
+        let result = FindUsbDevicesByType("NonExistentDeviceType12345");
+        assert!(result.is_ok(), "FindUsbDevicesByType should handle non-existent device types gracefully");
     }
 }

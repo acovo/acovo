@@ -28,36 +28,49 @@ fn main() {
         }
     }
 
-    // Test case 1: Try to find a device that likely exists (Apple vendor ID)
-    println!("\nTest Case 1: Searching for Apple devices (Vendor ID: 05ac)");
-    println!("-------------------------------------------------------");
+    // Test with a known Apple device (VID: 05ac)
     match acovo::dev::LinuxFindUsbDevice("05ac", "") {
-        Ok(found) => {
-            if found {
-                println!("✓ Apple device found!");
-            } else {
-                println!("✗ No Apple device found with the specified criteria.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error occurred during search: {}", e);
-        }
+        Ok(found) => println!("\n✓ Successfully determined that device with VID 05ac {}exist", if found { "" } else { "does not " }),
+        Err(e) => println!("\n✗ Error checking device with VID 05ac: {}", e),
     }
 
-    // Test case 2: Try to find a device that definitely doesn't exist
-    println!("\nTest Case 2: Searching for non-existent device (Vendor ID: ffff, Product ID: ffff)");
-    println!("----------------------------------------------------------------------------------");
+    // Test with a non-existent device (VID: ffff, PID: ffff)
     match acovo::dev::LinuxFindUsbDevice("ffff", "ffff") {
-        Ok(found) => {
-            if found {
-                println!("✓ Unexpectedly found the non-existent device!");
+        Ok(found) => println!("\n✓ Successfully determined that device ffff:ffff {}exist", if found { "" } else { "does not " }),
+        Err(e) => println!("\n✗ Error checking device ffff:ffff: {}", e),
+    }
+    
+    // Demonstrate the new FindUsbDevicesByType function
+    println!("\n=== Testing FindUsbDevicesByType function ===");
+    
+    // Try to find devices by a common device type
+    match acovo::dev::FindUsbDevicesByType("Apple") {
+        Ok(devices) => {
+            if devices.is_empty() {
+                println!("\n✓ FindUsbDevicesByType('Apple') completed successfully, no Apple devices found");
             } else {
-                println!("✓ Correctly determined that the device doesn't exist.");
+                println!("\n✓ FindUsbDevicesByType('Apple') found {} device(s):", devices.len());
+                for (i, device) in devices.iter().enumerate() {
+                    println!("  Device {}: {}", i + 1, device.lines().next().unwrap_or("Unknown device"));
+                }
             }
-        }
-        Err(e) => {
-            eprintln!("Error occurred during search: {}", e);
-        }
+        },
+        Err(e) => println!("\n✗ Error in FindUsbDevicesByType('Apple'): {}", e),
+    }
+    
+    // Try with another device type
+    match acovo::dev::FindUsbDevicesByType("AX88179") {
+        Ok(devices) => {
+            if devices.is_empty() {
+                println!("\n✓ FindUsbDevicesByType('AX88179') completed successfully, no AX88179 devices found");
+            } else {
+                println!("\n✓ FindUsbDevicesByType('AX88179') found {} device(s):", devices.len());
+                for (i, device) in devices.iter().enumerate() {
+                    println!("  Device {}: {}", i + 1, device.lines().next().unwrap_or("Unknown device"));
+                }
+            }
+        },
+        Err(e) => println!("\n✗ Error in FindUsbDevicesByType('AX88179'): {}", e),
     }
 
     // Additional information section
