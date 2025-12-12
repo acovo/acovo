@@ -2,13 +2,16 @@
 
 ## [Unreleased]
 
-## [0.1.1] - 2025-12-12
-
 ### Added
+- Comprehensive unit tests for all functions in `src/fs.rs`
 - New `FindUsbDevicesByType` function to search for USB devices by device type (product name or vendor name) instead of just VID/PID
 - Test cases for the new `FindUsbDevicesByType` function
 
 ### Fixed
+- Improved error handling in `get_exe_parent_path` and `get_current_parent_path` functions in `src/fs.rs`
+- Optimized `list_files` function in `src/fs.rs` to avoid unwrap() calls
+- Removed redundant `format!` macro usage in `write_lines` function in `src/fs.rs`
+- Improved `file_name` function in `src/fs.rs` to handle edge cases better
 - Improved USB device detection on macOS by expanding search range from ±20 to ±30 lines
 - Enhanced search algorithm to first collect device block lines before checking for product ID
 - Resolved issues with detecting specific devices:

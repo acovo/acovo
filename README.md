@@ -6,6 +6,10 @@ A public Rust framework providing utilities for system-level operations.
 
 - **Time**: Time and timezone handling utilities
 - **File System**: File system operations and utilities
+  - `read_file(path)`: Read file contents as bytes
+  - `write_file(path, data)`: Write data to a file
+  - `delete_file(path)`: Delete a file at the specified path
+  - `list_directory(path)`: List files and directories in a given path
 - **Hash**: Cryptographic hashing functions
 - **Network**: Network-related utilities
 - **Protobuf**: Protocol buffer serialization support
@@ -14,6 +18,22 @@ A public Rust framework providing utilities for system-level operations.
 - **Compression**: ZIP compression utilities
 - **Development**: Development and debugging utilities
 - **Device Detection**: Cross-platform device detection (including USB devices)
+
+## File System Operations
+
+The library includes comprehensive file system operations:
+
+### Available Functions
+
+- `get_exe_dir()`: Get the directory of the currently running executable
+- `mkdir(path)`: Create a directory at the specified path
+- `read_lines(file)`: Read lines from a file
+- `write_lines(file, lines, create)`: Write lines to a file
+- `get_exe_parent_path()`: Get the parent directory of the currently running executable
+- `get_current_parent_path()`: Get the parent directory of the current working directory
+- `get_parent_path(path)`: Get the parent directory of a given path
+- `list_files(dir, ext)`: List files with a specific extension in a directory (recursively)
+- `file_name(path)`: Extract the file name from a path
 
 ## USB Device Detection (macOS)
 
