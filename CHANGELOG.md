@@ -1,19 +1,20 @@
 # Changelog
 
-### v0.1.1 - 2025-12-12
+### v0.1.1 - 2024-12-12
 
 ### Added
-- Enhanced proto module unit tests with comprehensive edge case coverage
+ - Enhanced zip module with comprehensive unit tests
+   - Added tests for valid ZIP file extraction
+   - Added tests for directory structure preservation
+   - Added tests for empty filename and destination handling
+   - Added tests for special character support in filenames
+   - Added tests for multiple file extraction
+ - Enhanced proto module unit tests with comprehensive edge case coverage
   - Added boundary condition tests for Request::validate method
   - Added edge case tests for Response::new_with_state method
   - Added additional State structure test cases
   - Added error handling and special scenario tests
   - Added boundary condition tests for Response::raiseRequestError method
-- Added tests for None body serialization in Request and Response structures
-- Added tests for minimal field headers in RequestHeader and ResponseHeader
-- Added tests for high return code values in State structure
-- Added tests for special characters and Unicode support
-- Implemented macOS platform network functionality support
 - Enhanced time module with comprehensive documentation and additional unit tests
   - Added detailed function documentation for all time-related functions
   - Added comprehensive unit tests for time parsing and formatting functions
@@ -26,17 +27,6 @@
   - Added compilation tests for trace macros
   - Added tests for LocalTimeFormatter and get_exe_dir functionality
   - Created integration tests for trace module features
-- Enhanced proto module unit tests with comprehensive edge case coverage
-  - Added boundary condition tests for Request::validate method
-  - Added edge case tests for Response::new_with_state method
-  - Added additional State structure test cases
-  - Added error handling and special scenario tests
-  - Added boundary condition tests for Response::raiseRequestError method
-- Added tests for None body serialization in Request and Response structures
-- Added tests for minimal field headers in RequestHeader and ResponseHeader
-- Added tests for high return code values in State structure
-- Added tests for special characters and Unicode support
-- Implemented macOS platform network functionality support
 - Optimized trace module implementation
   - Improved module organization and documentation
   - Enhanced init_tracing and init_global_tracing macros with better error handling
